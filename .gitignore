@@ -22,7 +22,7 @@ figs
 local_figs/
 
 # Data files
-*.csv
+#*.csv
 *.tsv
 *.txt
 
