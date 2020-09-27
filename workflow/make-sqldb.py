@@ -133,10 +133,10 @@ def get_normalized_name(first_name, last_name):
 if __name__ == "__main__":
 
     WOS_ID_FILE = sys.argv[1]
-    ES_PASSWORD = sys.argv[2]
-    ES_USERNAME = sys.argv[3]
-    ES_ENDPOINT = sys.argv[4]
-    CITATION_DB = sys.argv[5]
+    CITATION_DB = sys.argv[2]
+    ES_PASSWORD = sys.argv[3]
+    ES_USERNAME = sys.argv[4]
+    ES_ENDPOINT = sys.argv[5]
     OUTPUT_DB = sys.argv[6]
 
     # Retrieve the wos_ids
