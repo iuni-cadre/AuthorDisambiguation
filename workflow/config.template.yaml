@@ -1,0 +1,4 @@
+data_dir: "./data/"
+es_password: "password for ElasticSearch"
+es_username: "usename for ElasticSearch"
+es_endpoint: "iuni2.carbonate.uits.iu.edu:9200/wos/_search/"
