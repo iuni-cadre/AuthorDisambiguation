@@ -4,6 +4,7 @@ Project to compare and develop disambiguation solutions for Web fo Science and b
 
 ## Set up
 
+## Environment
 First create a virtual environment for the project.
 
     conda create -n WoS-disambiguation python=3.7
@@ -18,6 +19,7 @@ Create a kernel for the virtual environment that you can use in Jupyter lab/note
 
     python -m ipykernel install --user --name WoS-disambiguation
 
+## Password and Username for ElasticSearch
 Set up the config.yaml file, i.e., 
  
     cp workflow/config.template.yaml workflow/config.yaml
@@ -30,6 +32,8 @@ es_password: "password for ElasticSearch"
 es_username: "usename for ElasticSearch"
 es_endpoint: "iuni2.carbonate.uits.iu.edu:9200/wos/_search/"
 ```
+
+Don't worry. The config.yaml is gitignored and won't be pushed to the remote. 
 
 ## Packages
 - numpy
