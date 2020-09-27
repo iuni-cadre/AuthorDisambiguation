@@ -35,6 +35,11 @@ es_endpoint: "iuni2.carbonate.uits.iu.edu:9200/wos/_search/"
 
 Don't worry. The config.yaml is gitignored and won't be pushed to the remote. 
 
+### Connect your computer to the ElasticSearch server
+
+(Ask Mat how to do it)
+
+
 ## Packages
 - numpy
 - scipy
