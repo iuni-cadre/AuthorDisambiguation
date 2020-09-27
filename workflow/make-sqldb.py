@@ -132,15 +132,11 @@ def get_normalized_name(first_name, last_name):
 
 if __name__ == "__main__":
 
-    paper_table_file = sys.argv[1]  # "../data/testData.csv"
-
+    WOS_ID_FILE = sys.argv[1]
     ES_PASSWORD = sys.argv[2]
     ES_USERNAME = sys.argv[3]
-    ES_ENDPOINT = sys.argv[
-        4
-    ]  # "iuni2.carbonate.uits.iu.edu:9200/wos/_search/" # wos/_search/
-    WOS_ID_FILE = sys.argv[5]
-    OUTPUT = sys.argv[6]
+    ES_ENDPOINT = sys.argv[4]
+    OUTPUT_DB = sys.argv[5]
 
     # Retrieve the wos_ids
     wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values
