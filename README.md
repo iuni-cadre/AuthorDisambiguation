@@ -18,6 +18,18 @@ Create a kernel for the virtual environment that you can use in Jupyter lab/note
 
     python -m ipykernel install --user --name WoS-disambiguation
 
+Set up the config.yaml file, i.e., 
+ 
+    cp workflow/config.template.yaml workflow/config.yaml
+
+Then, set your password and username for the ElasticSearch server:
+
+```
+data_dir: "./data/"
+es_password: "password for ElasticSearch"
+es_username: "usename for ElasticSearch"
+es_endpoint: "iuni2.carbonate.uits.iu.edu:9200/wos/_search/"
+```
 
 ## Packages
 - numpy
