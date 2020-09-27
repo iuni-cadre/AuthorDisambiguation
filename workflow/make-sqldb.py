@@ -136,10 +136,22 @@ if __name__ == "__main__":
     ES_PASSWORD = sys.argv[2]
     ES_USERNAME = sys.argv[3]
     ES_ENDPOINT = sys.argv[4]
-    OUTPUT_DB = sys.argv[5]
+    CITATION_DB = sys.argv[5]
+    OUTPUT_DB = sys.argv[6]
 
     # Retrieve the wos_ids
     wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values
+
+    #
+    # Retrieve the citation data from the WOS
+    #
+    conn = sqlite3.connect(CITATION_DB)
+    citation_table = pd.read_sql(
+        "select citing as source, cited as target from citation_table where source in ({wos_ids}) or target in ({wos_ids})".format(
+            wos_ids=",".join(['"%s"' % s for s in wos_ids])
+        ),
+        conn,
+    )
 
     #
     # Retrieve the bibliographic data from WOS database
@@ -219,15 +231,22 @@ if __name__ == "__main__":
     pd.DataFrame(name_paper_table).to_sql(
         "name_paper_table", conn, if_exists="append", index=False
     )
+
     pd.DataFrame(name_table).to_sql("name_table", conn, if_exists="append", index=False)
+
     pd.DataFrame(block_table).to_sql(
         "block_table", conn, if_exists="append", index=False
     )
+
     pd.DataFrame(paper_table).to_sql(
         "paper_table", conn, if_exists="append", index=False
     )
 
     pd.DataFrame(address_table).to_sql(
         "address_table", conn, if_exists="append", index=False
+    )
+
+    pd.DataFrame(citation_table).to_sql(
+        "citation_table", conn, if_exists="append", index=False
     )
     conn.close()
