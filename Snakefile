@@ -14,6 +14,9 @@ WOS_DISAMBIGUATION_DB = "data/wos-disambiguation-data.db"
 
 WOS_UID_FILE = "data/testData.csv"
 
+# Blocked paper list
+BLOCK_PAPERS_LIST = "data/block-papers-list.csv"
+
 rule all:
     input: WOS_CITATION_DB 
 
@@ -28,3 +31,10 @@ rule construct_disambiguation_paper_db:
     output: WOS_DISAMBIGUATION_DB 
     run:
         shell("python workflow/make-sqldb.py {input} {ES_PASSWORD} {ES_USERNAME} {ES_ENDPOINT} {output}")
+
+rule create_block_papers_list:
+    input: WOS_DISAMBIGUATION_DB 
+    output: BLOCK_PAPERS_LIST
+    run:
+        shell("python workflow/partition-into-name-blocks.py {input} {output}")
+
