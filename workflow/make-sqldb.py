@@ -209,6 +209,9 @@ if __name__ == "__main__":
         name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
     ).drop(columns="name")
     name_paper_table = name_paper_table[["name_id", "paper_id", "email_address"]]
+    name_paper_table["name_paper_id"] = np.arange(name_paper_table.shape[0])
+    name_paper_table = pd.merge(name_paper_table, block_table, on = "name_id", how = "left")
+
 
     # (address_table)
     address_table = address_table.rename(
