@@ -15,7 +15,11 @@ WOS_DISAMBIGUATION_DB = "data/wos-disambiguation-data.db"
 WOS_UID_FILE = "data/testData.csv"
 
 # Blocked paper list
-BLOCK_PAPERS_LIST = "data/block-papers-list.csv"
+#BLOCK_PAPERS_LIST = "data/block-papers-list.csv"
+
+# Author Name count file 
+NAME_COUNT_FILE = "data/nameCount.csv"
+GENERAL_NAME_FILE_LIST = "data/general-name-list.csv"
 
 rule all:
     input: WOS_CITATION_DB 
@@ -32,9 +36,14 @@ rule construct_disambiguation_paper_db:
     run:
         shell("python workflow/make-sqldb.py {input} {ES_PASSWORD} {ES_USERNAME} {ES_ENDPOINT} {output}")
 
-rule create_block_papers_list:
-    input: WOS_DISAMBIGUATION_DB 
-    output: BLOCK_PAPERS_LIST
-    run:
-        shell("python workflow/partition-into-name-blocks.py {input} {output}")
+#rule create_block_papers_list:
+#    input: WOS_DISAMBIGUATION_DB 
+#    output: BLOCK_PAPERS_LIST
+#    run:
+#        shell("python workflow/partition-into-name-blocks.py {input} {output}")
 
+rule make_general_name_list:
+    input: NAME_COUNT_FILE
+    output: GENERAL_NAME_FILE_LIST
+    run:
+        shell("python workflow/make-general-name-list.py {input} {output}")
