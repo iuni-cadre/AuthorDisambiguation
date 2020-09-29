@@ -30,19 +30,26 @@ Then, set your password and username for the ElasticSearch server:
 data_dir: "./data/"
 es_password: "password for ElasticSearch"
 es_username: "usename for ElasticSearch"
-es_endpoint: "iuni2.carbonate.uits.iu.edu:9200/wos/_search/"
+es_endpoint: "localhost:9200/wos/_search/"
 ```
 
 Don't worry. The config.yaml is gitignored and won't be pushed to the remote. 
 
 ### Connect your computer to the ElasticSearch server
 
-(Ask Mat how to do it)
+Establish the ssh tunneling:
 
+```
+username={your username in the server}
+privatekey={your private key to ssh to the server}
+server=iuni2.carbonate.uits.iu.edu
+port=9200
+ssh -i $privatekey -N -L $port:$username@localhost:$port $server
+```
 
 ## Packages
 - numpy
 - scipy
 - pandas
 - dask
-- 
+
