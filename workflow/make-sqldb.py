@@ -12,14 +12,25 @@ import sys
 #
 # Retrieve the bibliographics from the UID
 #
-def find_papers_by_UID(uri, uids):
-    """Simple Elasticsearch Query"""
-    query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
-    headers = {"Content-Type": "application/json"}
-    response = requests.get(uri, headers=headers, data=query)
-    results = json.loads(response.text)
-    return results
+def find_papers_by_UID(uri, uids, max_request_records = 1000):
+    def find_papers_by_UID(uri, uids):
+        """Simple Elasticsearch Query"""
+        query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
+        headers = {"Content-Type": "application/json"}
+        response = requests.get(uri, headers=headers, data=query)
+        results = json.loads(response.text)
+        return results
 
+    num_rounds = np.ceil(len(uids) / max_request_records).astype(int) 
+    all_results = []
+    for i in range(num_rounds):
+        print(i)
+        sidx = max_request_records*i
+        fidx = sidx + max_request_records 
+        results = find_papers_by_UID(uri, uids[sidx:fidx])
+        all_results+=results["hits"]["hits"]
+    print(len(all_results))
+    return all_results
 
 #
 # Parse the retrieved json and store them as pandas table
@@ -27,7 +38,7 @@ def find_papers_by_UID(uri, uids):
 def safe_parse(parse_func):
     def wrapper(results, *args, **kwargs):
         df_list = []
-        for result in results["hits"]["hits"]:
+        for result in results:
             UID = result["_id"]
 
             df = parse_func(result, *args, **kwargs)
@@ -104,13 +115,12 @@ def parse_paper_info(result):
 #
 # For Names
 #
+def get_first_char(x, default=""):
+    if isinstance(x, str):
+        return x[0]
+    else:
+        return default
 def get_initials(first_name, last_name):
-    def get_first_char(x, default=""):
-        if isinstance(x, str):
-            return x[0]
-        else:
-            return default
-
     return get_first_char(first_name) + get_first_char(last_name)
 
 
@@ -120,13 +130,6 @@ def get_normalized_name(first_name, last_name):
             return x.lower()
         else:
             return default
-
-    def get_first_char(x, default=""):
-        if isinstance(x, str):
-            return x[0]
-        else:
-            return default
-
     return get_name(last_name) + get_name(get_first_char(first_name))
 
 
@@ -140,7 +143,7 @@ if __name__ == "__main__":
     OUTPUT_DB = sys.argv[6]
 
     # Retrieve the wos_ids
-    wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values
+    wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values.tolist()
 
     #
     # Retrieve the citation data from the WOS
@@ -160,7 +163,10 @@ if __name__ == "__main__":
         user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
     )
 
-    results = find_papers_by_UID(es_end_point, wos_ids.tolist())
+    citation_table = citation_table.dropna()
+    #paper_ids = list(set(citation_table[["source", "target"]].values.reshape(-1)).union(set(wos_ids)))
+    results = find_papers_by_UID(es_end_point, wos_ids)
+
 
     #
     # Parse
@@ -182,20 +188,28 @@ if __name__ == "__main__":
     name_table["normalized_name"] = name_table.apply(
         lambda x: get_normalized_name(x["first_name"], x["last_name"]), axis=1
     )
-    name_table = name_table[
-        ["name", "initials", "first_name", "last_name", "normalized_name"]
-    ].drop_duplicates()
-
     block_table = (
         name_table[["normalized_name"]]
         .drop_duplicates()
         .reset_index()
         .drop(columns=["index"])
     )
-    block_table["block_id"] = np.arange(block_table.shape[0])
-
+    block_table["block_id"] = np.arange(block_table.shape[0]).astype(int)
     name_table = pd.merge(name_table, block_table, on="normalized_name", how="left")
+    #name_table.loc[np.isin(name_table["UID"].values, wos_ids), "block_id"] = None
+    name_table = name_table[
+        ["name", "initials", "first_name", "last_name", "normalized_name", "block_id"]
+    ].drop_duplicates()
+    name_table["first_name"] = name_table["first_name"].str.replace('[^a-zA-Z ]', '')
+    name_table["last_name"] = name_table["last_name"].str.replace('[^a-zA-Z ]', '')
     name_table["name_id"] = np.arange(name_table.shape[0])
+    #name_table["block_id"] = name_table["block_id"].astype(int)
+
+
+    # add short name (initial + last name) 
+    name_table["short_name"] = name_table["last_name"].apply(lambda x : x.lower() if isinstance(x, str) else "") +"_" + name_table["first_name"].apply(lambda x : get_first_char(x).lower()) 
+    short_name_list = name_table["short_name"].drop_duplicates().values
+    name_table = pd.merge(name_table, pd.DataFrame({"short_name":short_name_list, "short_name_id":np.arange(short_name_list.size)}), on = "short_name", how= "left")
 
     # (paper_table)
     paper_table = paper_info.copy()
@@ -210,14 +224,14 @@ if __name__ == "__main__":
     ).drop(columns="name")
     name_paper_table = name_paper_table[["name_id", "paper_id", "email_address"]]
     name_paper_table["name_paper_id"] = np.arange(name_paper_table.shape[0])
-    name_paper_table = pd.merge(name_paper_table, name_table, on = "name_id", how = "left")
+    name_paper_table = pd.merge(name_paper_table, name_table[["name_id", "short_name_id", "block_id"]], on = "name_id", how = "left")
 
     # (address_table)
     address_table = address_table.rename(
-        columns={"organizations": "organization", "suborganizations": "department"}
+        columns={"organizations": "organization", "suborganizations": "department","UID":"paper_id"}
     )
     address_table = address_table[
-        ["UID", "full_address", "city", "country", "organization", "department"]
+        ["paper_id", "full_address", "city", "country", "organization", "department"]
     ]
     address_table["organization"] = address_table["organization"].astype(str)
     address_table["department"] = address_table["department"].astype(str)
