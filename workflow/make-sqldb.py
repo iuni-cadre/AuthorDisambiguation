@@ -12,7 +12,7 @@ import sys
 #
 # Retrieve the bibliographics from the UID
 #
-def find_papers_by_UID(uri, uids, max_request_records = 1000):
+def find_papers_by_UID(uri, uids, max_request_records=1000):
     def find_papers_by_UID(uri, uids):
         """Simple Elasticsearch Query"""
         query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
@@ -21,16 +21,15 @@ def find_papers_by_UID(uri, uids, max_request_records = 1000):
         results = json.loads(response.text)
         return results
 
-    num_rounds = np.ceil(len(uids) / max_request_records).astype(int) 
+    num_rounds = np.ceil(len(uids) / max_request_records).astype(int)
     all_results = []
     for i in range(num_rounds):
-        print(i)
-        sidx = max_request_records*i
-        fidx = sidx + max_request_records 
+        sidx = max_request_records * i
+        fidx = sidx + max_request_records
         results = find_papers_by_UID(uri, uids[sidx:fidx])
-        all_results+=results["hits"]["hits"]
-    print(len(all_results))
+        all_results += results["hits"]["hits"]
     return all_results
+
 
 #
 # Parse the retrieved json and store them as pandas table
@@ -49,6 +48,25 @@ def safe_parse(parse_func):
         return df
 
     return wrapper
+
+
+@safe_parse
+def parse_grant_name(result):
+    fund_ack = result["_source"]["doc"].get("fund_ack", [{"grants": {"grant": []}}])
+    grants = [r["grants"]["grant"] for r in fund_ack]
+    grant_ids = [
+        r["grant_ids"]["grant_id"]
+        for r in list(itertools.chain(*grants))
+        if "grant_ids" in r
+    ]
+    merged = []
+    for grant_id in grant_ids:
+        if isinstance(grant_id, list):
+            merged += grant_id
+        else:
+            merged += [grant_id]
+    df = pd.DataFrame(merged, columns=["grant_id"])
+    return df
 
 
 @safe_parse
@@ -120,6 +138,8 @@ def get_first_char(x, default=""):
         return x[0]
     else:
         return default
+
+
 def get_initials(first_name, last_name):
     return get_first_char(first_name) + get_first_char(last_name)
 
@@ -130,6 +150,7 @@ def get_normalized_name(first_name, last_name):
             return x.lower()
         else:
             return default
+
     return get_name(last_name) + get_name(get_first_char(first_name))
 
 
@@ -164,9 +185,7 @@ if __name__ == "__main__":
     )
 
     citation_table = citation_table.dropna()
-    #paper_ids = list(set(citation_table[["source", "target"]].values.reshape(-1)).union(set(wos_ids)))
     results = find_papers_by_UID(es_end_point, wos_ids)
-
 
     #
     # Parse
@@ -174,67 +193,166 @@ if __name__ == "__main__":
     address_table = parse_address_name(results)
     author_table = parse_author_name(results)
     paper_info = parse_paper_info(results)
+    grant_table = parse_grant_name(results)
 
     #
-    # Formatting
+    # Make name_table and block_table
     #
     # (name_table, block_table)
-    name_table = author_table.copy()
-    name_table = name_table.rename(columns={"full_name": "name"})
 
-    name_table["initials"] = name_table.apply(
+    # Create the normalized name and initials
+    author_table = author_table.rename(
+        columns={"wos_standard": "name", "UID": "paper_id"}
+    )
+    author_table["initials"] = author_table.apply(
         lambda x: get_initials(x["first_name"], x["last_name"]), axis=1
     )
-    name_table["normalized_name"] = name_table.apply(
+    author_table["normalized_name"] = author_table.apply(
         lambda x: get_normalized_name(x["first_name"], x["last_name"]), axis=1
     )
+
+    # Create block table
     block_table = (
-        name_table[["normalized_name"]]
+        author_table[["normalized_name"]]
         .drop_duplicates()
         .reset_index()
         .drop(columns=["index"])
     )
     block_table["block_id"] = np.arange(block_table.shape[0]).astype(int)
-    name_table = pd.merge(name_table, block_table, on="normalized_name", how="left")
-    #name_table.loc[np.isin(name_table["UID"].values, wos_ids), "block_id"] = None
+    name_table = pd.merge(author_table, block_table, on="normalized_name", how="left")
     name_table = name_table[
         ["name", "initials", "first_name", "last_name", "normalized_name", "block_id"]
     ].drop_duplicates()
-    name_table["first_name"] = name_table["first_name"].str.replace('[^a-zA-Z ]', '')
-    name_table["last_name"] = name_table["last_name"].str.replace('[^a-zA-Z ]', '')
+
+    # Normalize
+    name_table["first_name"] = name_table["first_name"].str.replace("[^a-zA-Z ]", "")
+    name_table["last_name"] = name_table["last_name"].str.replace("[^a-zA-Z ]", "")
     name_table["name_id"] = np.arange(name_table.shape[0])
-    #name_table["block_id"] = name_table["block_id"].astype(int)
 
-
-    # add short name (initial + last name) 
-    name_table["short_name"] = name_table["last_name"].apply(lambda x : x.lower() if isinstance(x, str) else "") +"_" + name_table["first_name"].apply(lambda x : get_first_char(x).lower()) 
+    # add short name
+    name_table["short_name"] = (
+        name_table["last_name"].apply(lambda x: x.lower() if isinstance(x, str) else "")
+        + "_"
+        + name_table["first_name"].apply(lambda x: get_first_char(x).lower())
+    )
     short_name_list = name_table["short_name"].drop_duplicates().values
-    name_table = pd.merge(name_table, pd.DataFrame({"short_name":short_name_list, "short_name_id":np.arange(short_name_list.size)}), on = "short_name", how= "left")
+    name_table = pd.merge(
+        name_table,
+        pd.DataFrame(
+            {
+                "short_name": short_name_list,
+                "short_name_id": np.arange(short_name_list.size),
+            }
+        ),
+        on="short_name",
+        how="left",
+    )
+
+    #
+    # Make name_paper_table
+    #
+    name_paper_table = author_table.copy().rename(
+        columns={
+            "wos_standard": "name",
+            "UID": "paper_id",
+            "email_addr": "email_address",
+        }
+    )
+    name_paper_table = pd.merge(
+        name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
+    ).drop(columns="name")
+    name_paper_table = name_paper_table[
+        ["name_id", "paper_id", "email_address", "_addr_no"]
+    ]
+    name_paper_table["name_paper_id"] = np.arange(name_paper_table.shape[0])
+    name_paper_table = pd.merge(
+        name_paper_table,
+        name_table[["name_id", "short_name_id", "block_id"]],
+        on="name_id",
+        how="left",
+    )
+
+    #
+    # paper_address_table
+    #
+    # Make address table that contain both author-associated and non-associated addresses
+    address_table = address_table.rename(
+        columns={
+            "organizations": "organization",
+            "suborganizations": "department",
+            "UID": "paper_id",
+        }
+    )
+    address_table = address_table[
+        [
+            "paper_id",
+            "full_address",
+            "city",
+            "country",
+            "organization",
+            "department",
+            "_addr_no",
+        ]
+    ]
+
+    def get_pref_records(records):
+        if len(records) == 0:
+            return None
+        for record in records:
+            if "_pref" in record:
+                return record
+        return records[0]
+
+    def get_department(dept):
+        if isinstance(dept, list):
+            return dept[0]
+        return dept
+
+    address_table["organization"] = address_table["organization"].apply(
+        lambda x: get_pref_records(x.get("organization", []))["_VALUE"]
+    )
+    address_table["department"] = (
+        address_table["department"]
+        .apply(
+            lambda x: get_department(x["suborganization"])
+            if isinstance(x, dict)
+            else None
+        )
+        .astype(str)
+    )
+
+    #
+    # generate name_paper_address_table
+    #
+    # author-paper affiliation table
+    name_paper_addr_table = name_paper_table.copy()[
+        ["paper_id", "_addr_no", "name_paper_id"]
+    ].dropna()
+    name_paper_addr_list = []
+    for i, row in name_paper_addr_table.iterrows():
+        name_paper_addr_list += [
+            (row["name_paper_id"], row["paper_id"], int(_addr_no))
+            for _addr_no in row["_addr_no"].split(" ")
+        ]
+    name_paper_addr_table = pd.DataFrame(
+        name_paper_addr_list, columns=["name_paper_id", "paper_id", "_addr_no"]
+    )
+    name_paper_addr_table = pd.merge(
+        name_paper_addr_table[["name_paper_id", "paper_id", "_addr_no"]],
+        address_table,
+        on=["paper_id", "_addr_no"],
+        how="left",
+    )
+
+    # generate paper_address_table
+    paper_address_table = address_table[pd.isna(address_table["_addr_no"])]
 
     # (paper_table)
     paper_table = paper_info.copy()
     paper_table = paper_table.rename(columns={"source": "journal", "UID": "paper_id"})
 
-    # (name_paper_table)
-    name_paper_table = author_table.copy().rename(
-        columns={"full_name": "name", "UID": "paper_id", "email_addr": "email_address"}
-    )
-    name_paper_table = pd.merge(
-        name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
-    ).drop(columns="name")
-    name_paper_table = name_paper_table[["name_id", "paper_id", "email_address"]]
-    name_paper_table["name_paper_id"] = np.arange(name_paper_table.shape[0])
-    name_paper_table = pd.merge(name_paper_table, name_table[["name_id", "short_name_id", "block_id"]], on = "name_id", how = "left")
-
-    # (address_table)
-    address_table = address_table.rename(
-        columns={"organizations": "organization", "suborganizations": "department","UID":"paper_id"}
-    )
-    address_table = address_table[
-        ["paper_id", "full_address", "city", "country", "organization", "department"]
-    ]
-    address_table["organization"] = address_table["organization"].astype(str)
-    address_table["department"] = address_table["department"].astype(str)
+    # grant_table
+    grant_table = grant_table.rename(columns={"UID": "paper_id"})
 
     #
     # Output to SQL
@@ -258,8 +376,15 @@ if __name__ == "__main__":
         "paper_table", conn, if_exists="append", index=False
     )
 
-    pd.DataFrame(address_table).to_sql(
-        "address_table", conn, if_exists="append", index=False
+    pd.DataFrame(name_paper_addr_table).to_sql(
+        "name_paper_address_table", conn, if_exists="append", index=False
+    )
+
+    pd.DataFrame(paper_address_table).to_sql(
+        "paper_address_table", conn, if_exists="append", index=False
+    )
+    pd.DataFrame(grant_table).to_sql(
+        "grant_table", conn, if_exists="append", index=False
     )
 
     pd.DataFrame(citation_table).to_sql(
