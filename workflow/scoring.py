@@ -74,8 +74,12 @@ def to_binary_matrix(source, target, num_rows=None, num_cols=None):
     )
 
 
-def to_cooccurrence_matrix(source, target, num_rows=None, num_cols=None, binarize=True):
-    B, _, _ = to_binary_matrix(source, target, num_rows=num_rows, num_cols=num_cols)
+def to_cooccurrence_matrix(
+    df, source, target, num_rows=None, num_cols=None, binarize=True
+):
+    B, _, _ = to_binary_matrix(
+        df[source].values, df[target].values, num_rows=num_rows, num_cols=num_cols
+    )
     C = B @ B.T
     if binarize:
         C.data = np.ones_like(C.data)
@@ -110,16 +114,10 @@ def to_weighted_cooccurrence_matrix(
     W = None
     for i, w in enumerate(weights):
         if i == 0:
-            W = w * to_cooccurrence_matrix(
-                df[id_col].values, df[columns[i]].values, num_rows=num_rows
-            )
+            W = w * to_cooccurrence_matrix(df, id_col, columns[i], num_rows=num_rows)
         else:
-            Wnew = to_cooccurrence_matrix(
-                df[id_col].values, df[columns[i]].values, num_rows=num_rows
-            )
-            W += w * to_cooccurrence_matrix(
-                df[id_col].values, df[columns[i]].values, num_rows=num_rows
-            )
+            Wnew = to_cooccurrence_matrix(df, id_col, columns[i], num_rows=num_rows)
+            W += w * Wnew
     if return_mat == "dense":
         return W.toarray()
     elif return_mat == "sparse":
@@ -240,72 +238,72 @@ def get_name_paper_address(paper_ids, conn):
 #
 # Paiwise matching functions
 #
-def pairwise_matching(df, column):
-    vals = df[column].values
-    non_missing = np.where(~pd.isna(vals))[0]
-    _, val_ids = np.unique(vals[non_missing], return_inverse=True)
-    num_keys = len(non_missing)
-    num_uniq_vals = len(val_ids)
-    U = sparse.csr_matrix(
-        (np.ones(num_keys), (non_missing, val_ids)), shape=(df.shape[0], num_uniq_vals),
-    )
-    # Matching
-    W = U @ U.T
-    return W
-
-
-def weighted_matching(df, columns, weights, return_mat="dense"):
-    """
-    Calculate the matching score for pairs of rows 
-    
-    Params
-    ------
-    df: pandas.DataFrame
-    columns: list of str
-        Name of columns used for computing the matching score
-    weights: list of float 
-        The matching score is given by 
-            sum_{c in columns} w[c] * delta(df.loc[i, c], df.loc[j, c])
-        where delta is the Kronecker delta
-    return_mat: 'dense' or 'sparse'
-        return_mat='dense' and ='sparse' returns a numpy array and scipy.sparse.csr_matrix, respectively
-        
-    Return
-    ------
-    W : numpy.array or scipy.sparse.csr_matrix
-        (N by N) matrix, where W[i,j] is the matching score for pairs (df.iloc[i], df.iloc[j])
-    """
-    W = None
-    for i, w in enumerate(weights):
-        if i == 0:
-            W = w * pairwise_matching(df, columns[i])
-        else:
-            W += w * pairwise_matching(df, columns[i])
-    if return_mat == "dense":
-        return W.toarray()
-    elif return_mat == "sparse":
-        return W
-
-
-def nested_weighted_matching(df, columns, weights):
-    """
-    Calculate the matching score for pairs of rows. 
-    The weights for matching rules have a hierarchy, where columns[i+1] is the upper group of columns[i].
-    When a pair satisfies more than two rules simultaneously, the weight of the upper most rules will be used.
-    """
-    if isinstance(weights, list):
-        weights = np.array(weights)
-    W = weighted_matching(
-        df, columns, np.power(10, np.arange(len(columns))), return_mat="sparse"
-    )
-    if W.count_nonzero() == 0:
-        return W.toarray()
-
-    # Find the length of each element
-    length_checker = np.vectorize(len)
-    W.data = length_checker(W.data.astype(int).astype(str))
-    W.data = weights[W.data.astype(int) - 1]
-    return W.toarray()
+#def pairwise_matching(df, column):
+#    vals = df[column].values
+#    non_missing = np.where(~pd.isna(vals))[0]
+#    _, val_ids = np.unique(vals[non_missing], return_inverse=True)
+#    num_keys = len(non_missing)
+#    num_uniq_vals = len(val_ids)
+#    U = sparse.csr_matrix(
+#        (np.ones(num_keys), (non_missing, val_ids)), shape=(df.shape[0], num_uniq_vals),
+#    )
+#    # Matching
+#    W = U @ U.T
+#    return W
+#
+#
+#def weighted_matching(df, columns, weights, return_mat="dense"):
+#    """
+#    Calculate the matching score for pairs of rows 
+#    
+#    Params
+#    ------
+#    df: pandas.DataFrame
+#    columns: list of str
+#        Name of columns used for computing the matching score
+#    weights: list of float 
+#        The matching score is given by 
+#            sum_{c in columns} w[c] * delta(df.loc[i, c], df.loc[j, c])
+#        where delta is the Kronecker delta
+#    return_mat: 'dense' or 'sparse'
+#        return_mat='dense' and ='sparse' returns a numpy array and scipy.sparse.csr_matrix, respectively
+#        
+#    Return
+#    ------
+#    W : numpy.array or scipy.sparse.csr_matrix
+#        (N by N) matrix, where W[i,j] is the matching score for pairs (df.iloc[i], df.iloc[j])
+#    """
+#    W = None
+#    for i, w in enumerate(weights):
+#        if i == 0:
+#            W = w * pairwise_matching(df, columns[i])
+#        else:
+#            W += w * pairwise_matching(df, columns[i])
+#    if return_mat == "dense":
+#        return W.toarray()
+#    elif return_mat == "sparse":
+#        return W
+#
+#
+#def nested_weighted_matching(df, columns, weights):
+#    """
+#    Calculate the matching score for pairs of rows. 
+#    The weights for matching rules have a hierarchy, where columns[i+1] is the upper group of columns[i].
+#    When a pair satisfies more than two rules simultaneously, the weight of the upper most rules will be used.
+#    """
+#    if isinstance(weights, list):
+#        weights = np.array(weights)
+#    W = weighted_matching(
+#        df, columns, np.power(10, np.arange(len(columns))), return_mat="sparse"
+#    )
+#    if W.count_nonzero() == 0:
+#        return W.toarray()
+#
+#    # Find the length of each element
+#    length_checker = np.vectorize(len)
+#    W.data = length_checker(W.data.astype(int).astype(str))
+#    W.data = weights[W.data.astype(int) - 1]
+#    return W.toarray()
 
 
 #
@@ -330,7 +328,6 @@ def matching_score_by_authors(author_paper_table, general_name_list, conn):
     # Get paper ids
     #
     paper_ids = author_paper_table["paper_id"].drop_duplicates().values
-    num_papers = len(paper_ids)
     address_table = get_name_paper_address(paper_ids, conn)
 
     author_attri = author_paper_table.copy()
@@ -349,23 +346,36 @@ def matching_score_by_authors(author_paper_table, general_name_list, conn):
     Wlist = []  # List of score matrices
 
     # Rule 1
-    W = weighted_matching(author_attri, ["email_address"], [100])
+    author_attri["index"] = np.arange(author_attri.shape[0])
+    W = to_weighted_cooccurrence_matrix(
+        author_attri, "index", ["email_address"], [100], num_rows=author_attri.shape[0]
+    )
     Wlist += [W]
 
     # Rule 2a and 2b
     Wlist += [
-        nested_weighted_matching(
-            author_attri, ["initials", "initials_more_than_two"], [5, 10]
+        to_nested_weighted_cooccurrence_matrix(
+            author_attri,
+            "index",
+            ["initials", "initials_more_than_two"],
+            [5, 10],
+            num_rows=author_attri.shape[0],
         )
     ]
 
     # Rule 2c
-    Wn = weighted_matching(author_attri, ["initials"], [1])
+    Wn = to_weighted_cooccurrence_matrix(
+        author_attri, "index", ["initials"], [1], num_rows=author_attri.shape[0]
+    )
     Wlist += [-10 * (1 - Wn)]
 
     # Rule 3a and 3b
-    W = nested_weighted_matching(
-        author_attri, ["is_general_first_name", "is_special_first_name"], [3, 6]
+    W = to_nested_weighted_cooccurrence_matrix(
+        author_attri,
+        "index",
+        ["is_general_first_name", "is_special_first_name"],
+        [3, 6],
+        num_rows=author_attri.shape[0],
     )
     Wlist += [W]
 
@@ -518,7 +528,10 @@ def matching_score_by_source(author_paper_table, conn):
         on="paper_id",
         how="left",
     )
-    W = weighted_matching(df, ["journal"], [6])
+    df["index"] = np.arange(df.shape[0])
+    W = to_weighted_cooccurrence_matrix(
+        df, "index", ["journal"], [6], num_rows=df.shape[0]
+    )
     return W
 
 
@@ -528,7 +541,6 @@ def matching_score_by_citations(author_paper_table, conn):
     # Get paper ids
     #
     paper_ids = author_paper_table["paper_id"].drop_duplicates().values
-    num_papers = len(paper_ids)
 
     #
     # Get table
@@ -548,13 +560,14 @@ def matching_score_by_citations(author_paper_table, conn):
         on="target",
         how="left",
     ).dropna()
-    U, _, _ = to_binary_matrix(
-        cited_paper_table["index"].values,
-        cited_paper_table["source"].values,
+    bib_coupling_count_mat = 2 * to_cooccurrence_matrix(
+        cited_paper_table,
+        "index",
+        "source",
         num_rows=author_paper_table.shape[0],
+        binarize=False,
     )
-    bib_coupling_count_mat = U @ U.T
-    bib_coupling_count_mat.data = np.maximum(2 * bib_coupling_count_mat.data, 10)
+    bib_coupling_count_mat.data = np.minimum(bib_coupling_count_mat.data, 10)
     Wlist += [bib_coupling_count_mat]
 
     #
@@ -568,13 +581,14 @@ def matching_score_by_citations(author_paper_table, conn):
         on="source",
         how="left",
     ).dropna()
-    U, _, _ = to_binary_matrix(
-        citing_paper_table["index"].values,
-        citing_paper_table["target"].values,
+    co_citation_count_mat = to_cooccurrence_matrix(
+        citing_paper_table,
+        "index",
+        "target",
         num_rows=author_paper_table.shape[0],
+        binarize=False,
     )
-    co_citation_count_mat = U @ U.T
-    co_citation_count_mat.data = np.maximum(co_citation_count_mat.data + 1, 6)
+    co_citation_count_mat.data = np.minimum(co_citation_count_mat.data + 1, 6)
     Wlist += [co_citation_count_mat]
 
     #
@@ -583,13 +597,13 @@ def matching_score_by_citations(author_paper_table, conn):
     citing_paper_table = citing_paper_table.iloc[
         np.isin(citing_paper_table["target"].values, paper_ids)
     ]
-    node_by_paper, _, _ = to_binary_matrix(
-        citing_paper_table["index"].values,
-        citing_paper_table["target"].values,
+    W = 10 * to_cooccurrence_matrix(
+        citing_paper_table,
+        "index",
+        "target",
         num_rows=author_paper_table.shape[0],
+        binarize=True,
     )
-    W = node_by_paper @ node_by_paper.T
-    W.data = np.ones_like(W.data) * 10
     Wlist += [W]
 
     W = np.sum(Wlist, axis=0).toarray()
