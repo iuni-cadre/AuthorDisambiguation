@@ -116,8 +116,6 @@ class DataBase:
 #
 # tables = {author_paper_table, name_paper_address, paper_address, paper_table, grant_table, coauthor_table}
 #
-
-
 class ScoringRule:
     def __init__(self, db, general_name_list):
         self.db = db
