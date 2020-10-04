@@ -6,11 +6,11 @@ import requests
 import json
 import os
 import shutil
+import hashlib
 from tqdm import tqdm
 
 
 class DataBlockingAlgorithm:
-
     def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB):
         self.es_end_point = "http://{user}:{password}@{endpoint}".format(
             user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
@@ -40,7 +40,10 @@ class DataBlockingAlgorithm:
                 .reset_index()
                 .drop(columns=["index"])
             )
-            block_table["block_id"] = np.arange(block_table.shape[0]).astype(int)
+            block_table["block_id"] = block_table.apply(
+                lambda x: hashlib.sha256(str.encode(x["normalized_name"])).hexdigest(),
+                axis=1,
+            )
             return block_table
 
         def construct_name_table(author_block, table_block):
@@ -65,7 +68,14 @@ class DataBlockingAlgorithm:
             name_table["last_name"] = name_table["last_name"].str.replace(
                 "[^a-zA-Z ]", ""
             )
-            name_table["name_id"] = np.arange(name_table.shape[0])
+
+            def concat(x):
+                s = "_".join(["%s" % v for k, v in x.items()])
+                return str.encode(s)
+
+            name_table["name_id"] = name_table.apply(
+                lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
+            )
 
             # add short name
             name_table["short_name"] = (
@@ -83,7 +93,10 @@ class DataBlockingAlgorithm:
                 pd.DataFrame(
                     {
                         "short_name": short_name_list,
-                        "short_name_id": np.arange(short_name_list.size),
+                        "short_name_id": [
+                            hashlib.sha256(str.encode(x)).hexdigest()
+                            for x in short_name_list
+                        ],
                     }
                 ),
                 on="short_name",
@@ -103,10 +116,20 @@ class DataBlockingAlgorithm:
             name_paper_table = pd.merge(
                 name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
             ).drop(columns="name")
+
+            if "_addr_no" is not None:
+                name_paper_table["_addr_no"] = None
             name_paper_table = name_paper_table[
                 ["name_id", "paper_id", "email_address", "_addr_no"]
             ]
-            name_paper_table["name_paper_id"] = np.arange(name_paper_table.shape[0])
+
+            def concat(x):
+                s = "_".join(["%s" % v for k, v in x.items()])
+                return str.encode(s)
+
+            name_paper_table["name_paper_id"] = name_paper_table.apply(
+                lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
+            )
             name_paper_table = pd.merge(
                 name_paper_table,
                 name_table[["name_id", "short_name_id", "block_id"]],
@@ -160,11 +183,7 @@ class DataBlockingAlgorithm:
             shutil.rmtree(output_dir)
             os.mkdir(output_dir)
 
-        for _, block in tqdm(
-            block_table.iterrows(),
-            total=block_table.shape[0],
-            desc="Blocking by author names",
-        ):
+        for _, block in block_table.iterrows():
             block_name = block["normalized_name"]
             block_id = block["block_id"]
 
@@ -423,3 +442,19 @@ class DataBlockingAlgorithm:
             return x[0]
         else:
             return default
+
+
+# if __name__ == "__main__":
+#
+#    WOS_ID_FILE = "../data/testData.csv"
+#    CITATION_DB = "../data/wos-citation.db"
+#    ES_PASSWORD = "FSailing4046"
+#    ES_USERNAME = "skojaku"
+#    ES_ENDPOINT = "localhost:9200/wos/_search/"
+#
+#    # Retrieve the wos_ids
+#    wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values.tolist()
+#
+#    db=DataBlockingAlgorithm(ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB)
+#
+#    db.run(wos_ids, "tmp")
