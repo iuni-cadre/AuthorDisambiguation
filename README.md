@@ -1,7 +1,6 @@
 # WoS-disambiguation
 Project to compare and develop disambiguation solutions for Web fo Science and beyond
 
-
 ## Set up
 
 ### Environment
@@ -47,9 +46,21 @@ port=9200
 ssh -i $privatekey -N -L $port:$username@localhost:$port $server
 ```
 
+### Symbolic link to the shared directory
+
+Under the root of this repository,
+
+```
+ln -s /gpfs/science-genome/WoS-disambiguation/ data
+```
+
+
 ## Packages
 - numpy
 - scipy
 - pandas
-- dask
-
+- networkx
+- tqdm
+- snakemake
+- requests
+- sqlite3
