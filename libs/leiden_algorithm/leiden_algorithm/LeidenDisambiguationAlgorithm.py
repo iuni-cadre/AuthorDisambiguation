@@ -93,7 +93,7 @@ class LeidenDisambiguationAlgorithm:
         os.makedirs(self.clustered_dir)
         os.makedirs(self.disambiguated_dir)
 
-    def data_blocking(self, wos_ids, max_chunk=100):
+    def data_blocking(self, wos_ids, max_chunk=10):
         num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
         for pid in tqdm(range(num_partitions), desc="Grouping data"):
             n0 = pid * max_chunk
