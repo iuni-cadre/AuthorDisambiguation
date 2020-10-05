@@ -397,10 +397,10 @@ def parse_author_name(result):
     # Create the normalized name and initials
     df = df.rename(columns={"wos_standard": "name"})
     df["initials"] = df.apply(
-        lambda x: get_initials(x["first_name"], x["last_name"]), axis=1
+        lambda x: get_initials(x.get("first_name", ""), x.get("last_name", "")), axis=1
     )
     df["normalized_name"] = df.apply(
-        lambda x: get_normalized_name(x["first_name"], x["last_name"]), axis=1
+        lambda x: get_normalized_name(x.get("first_name", ""), x.get("last_name", "")), axis=1
     )
     return df
 
