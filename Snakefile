@@ -16,10 +16,11 @@ WOS_CITATION_DB = j(SHARED_DIR, "wos-citation.db")
 
 # Author Name count file
 NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
-GENERAL_NAME_LIST_FILE = j(SHARED_DIR, "data/general-name-list.csv")
+GENERAL_NAME_LIST_FILE = j(SHARED_DIR, "general-name-list.csv")
 
 # Input file
-WOS_UID_FILE = "data/testData.csv"
+WOS_UID_FILE = j(SHARED_DIR, "disambiguationBenchmarkLabels.csv")
+WOS_ID_COLUMN_NAME="WoSid"
 
 # Working directory for the Leiden disambiguation algorithm 
 DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
@@ -63,5 +64,5 @@ rule disambiguation:
         directory(DISAMBIGUATION_WORKING_DIR),
     run:
         shell(
-            "python workflow/disambiguation.py {ES_USERNAME} {ES_PASSWORD} {ES_ENDPOINT} {WOS_UID_FILE} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            "python workflow/disambiguation.py {ES_USERNAME} {ES_PASSWORD} {ES_ENDPOINT} {WOS_UID_FILE} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )

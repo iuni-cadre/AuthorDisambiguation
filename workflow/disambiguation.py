@@ -13,12 +13,13 @@ if __name__ == "__main__":
     ES_PASSWORD = sys.argv[2]
     ES_ENDPOINT = sys.argv[3]
     INPUT_WOS_FILE = sys.argv[4]
-    CITATION_DB = sys.argv[5]
-    GENERAL_NAME_LIST_FILE = sys.argv[6]
-    WORKING_DIR = sys.argv[7]
-    OUTPUT = sys.argv[8]
+    WOS_ID_COLUMN_NAME = sys.argv[5] 
+    CITATION_DB = sys.argv[6]
+    GENERAL_NAME_LIST_FILE = sys.argv[7]
+    WORKING_DIR = sys.argv[8]
+    OUTPUT = sys.argv[9]
 
-    wos_ids = pd.read_csv(INPUT_WOS_FILE)["UID"].drop_duplicates().values.tolist()
+    wos_ids = pd.read_csv(INPUT_WOS_FILE)[WOS_ID_COLUMN_NAME].drop_duplicates().values.tolist()
 
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
