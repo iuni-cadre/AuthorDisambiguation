@@ -146,3 +146,11 @@ def get_connected_component(W):
     for c, comp in enumerate(comps):
         cids[comp] = c
     return cids
+
+def slice_columns(tb, cols):
+    tb = tb.copy()
+    for c in cols:
+        if c not in tb.columns:
+            tb[c] = None
+
+    return tb[cols]
