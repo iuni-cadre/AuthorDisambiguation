@@ -82,7 +82,8 @@ class LeidenDisambiguationAlgorithm:
         try:
             shutil.rmtree(self.working_dir)
         except OSError as e:
-            print("Error: %s : %s" % (self.working_dir, e.strerror))
+            pass
+            #print("Error: %s : %s" % (self.working_dir, e.strerror))
 
         if not os.path.exists(self.working_dir):
             os.makedirs(self.working_dir)
@@ -91,7 +92,7 @@ class LeidenDisambiguationAlgorithm:
         os.makedirs(self.clustered_dir)
         os.makedirs(self.disambiguated_dir)
 
-    def data_blocking(self, wos_ids, max_chunk=10):
+    def data_blocking(self, wos_ids, max_chunk=100):
         num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
         for pid in tqdm(range(num_partitions), desc="Grouping data"):
             n0 = pid * max_chunk
