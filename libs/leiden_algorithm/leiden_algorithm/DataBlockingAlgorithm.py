@@ -364,7 +364,7 @@ def parse_address_name(result):
         ]
     ]
     df["organization"] = df["organization"].apply(
-        lambda x: get_pref_records(x.get("organization", []))["_VALUE"]
+        lambda x: get_pref_records(x.get("organization", []))["_VALUE"] if isinstance(x, dict) else None
     )
     df["department"] = (
         df["department"]

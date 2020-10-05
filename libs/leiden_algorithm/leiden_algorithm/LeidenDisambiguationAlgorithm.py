@@ -45,6 +45,7 @@ class LeidenDisambiguationAlgorithm:
         CITATION_DB,
         general_name_list,
         threshold=10,
+        n_jobs = 30
     ):
         """
         Params
@@ -64,9 +65,11 @@ class LeidenDisambiguationAlgorithm:
             List of general names
         threshold: float
             Threshold value for clustering
+        n_jobs : int
+            Number of jobs
         """
         self.data_blocking_alg = DataBlockingAlgorithm(
-            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB
+            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs = n_jobs
         )
         self.working_dir = working_dir
         self.general_name_list = general_name_list
