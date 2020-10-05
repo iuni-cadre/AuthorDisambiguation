@@ -5,21 +5,26 @@ import glob
 
 configfile: "workflow/config.yaml"
 
-
 ES_PASSWORD = config["es_password"]
 ES_USERNAME = config["es_username"]
 ES_ENDPOINT = config["es_endpoint"]
+SHARED_DIR = config["shared_dir"]
 
+# Files to construct the citation database 
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
-WOS_CITATION_DB = "data/wos-citation.db"
-WOS_DISAMBIGUATION_DB = "data/wos-disambiguation-data.db"
-
-WOS_UID_FILE = "data/testData.csv"
+WOS_CITATION_DB = j(SHARED_DIR, "wos-citation.db")
 
 # Author Name count file
-NAME_COUNT_FILE = "data/nameCount.csv"
-GENERAL_NAME_LIST_FILE = "data/general-name-list.csv"
+NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
+GENERAL_NAME_LIST_FILE = j(SHARED_DIR, "data/general-name-list.csv")
+
+# Input file
+WOS_UID_FILE = "data/testData.csv"
+
+# Working directory for the Leiden disambiguation algorithm 
 DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
+
+# Results 
 DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
 
 
