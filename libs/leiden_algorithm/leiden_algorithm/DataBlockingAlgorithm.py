@@ -8,6 +8,7 @@ import os
 import shutil
 import hashlib
 from tqdm import tqdm
+from .utils import *
 
 
 class DataBlockingAlgorithm:
@@ -50,7 +51,7 @@ class DataBlockingAlgorithm:
             name_table = pd.merge(
                 author_table, block_table, on="normalized_name", how="left"
             )
-            name_table = name_table[
+            name_table =slice_columns( name_table,
                 [
                     "name",
                     "initials",
@@ -59,7 +60,7 @@ class DataBlockingAlgorithm:
                     "normalized_name",
                     "block_id",
                 ]
-            ].drop_duplicates()
+            ).drop_duplicates()
 
             # Normalize
             name_table["first_name"] = name_table["first_name"].str.replace(
@@ -119,9 +120,7 @@ class DataBlockingAlgorithm:
 
             if "_addr_no" is not None:
                 name_paper_table["_addr_no"] = None
-            name_paper_table = name_paper_table[
-                ["name_id", "paper_id", "email_address", "_addr_no"]
-            ]
+            name_paper_table = slice_columns(name_paper_table, ["name_id", "paper_id", "email_address", "_addr_no"])
 
             def concat(x):
                 s = "_".join(["%s" % v for k, v in x.items()])
