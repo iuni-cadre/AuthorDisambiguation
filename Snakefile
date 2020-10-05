@@ -8,7 +8,7 @@ ES_PASSWORD = config["es_password"]
 ES_USERNAME = config["es_username"]
 ES_ENDPOINT = config["es_endpoint"]
 
-WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson/WoSedges/citeEdges.csv.gz"
+WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
 WOS_CITATION_DB = "data/wos-citation.db"
 WOS_DISAMBIGUATION_DB = "data/wos-disambiguation-data.db"
 
@@ -19,10 +19,14 @@ WOS_UID_FILE = "data/testData.csv"
 
 # Author Name count file 
 NAME_COUNT_FILE = "data/nameCount.csv"
-GENERAL_NAME_FILE_LIST = "data/general-name-list.csv"
+GENERAL_NAME_LIST_FILE = "data/general-name-list.csv"
+DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
+DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
+
+
 
 rule all:
-    input: WOS_CITATION_DB 
+    input: DISAMBIGUATED_AUTHOR_LIST
 
 rule construct_wos_citation_db:
     input: WOS_CITATION_FILE
@@ -30,20 +34,15 @@ rule construct_wos_citation_db:
     run:
         shell("python workflow/csv2sqlite.py --gzip {input} {output} && bash workflow/indexing-sql-table.sh {output}")
 
-rule construct_disambiguation_paper_db:
-    input: WOS_UID_FILE, WOS_CITATION_DB
-    output: WOS_DISAMBIGUATION_DB 
-    run:
-        shell("python workflow/make-sqldb.py {input} {ES_PASSWORD} {ES_USERNAME} {ES_ENDPOINT} {output}")
-
-#rule create_block_papers_list:
-#    input: WOS_DISAMBIGUATION_DB 
-#    output: BLOCK_PAPERS_LIST
-#    run:
-#        shell("python workflow/partition-into-name-blocks.py {input} {output}")
-
 rule make_general_name_list:
     input: NAME_COUNT_FILE
-    output: GENERAL_NAME_FILE_LIST
+    output: GENERAL_NAME_LIST_FILE
     run:
         shell("python workflow/make-general-name-list.py {input} {output}")
+
+
+rule disambiguation:
+    input: WOS_UID_FILE, WOS_CITATION_DB, GENERAL_NAME_LIST_FILE
+    output: DISAMBIGUATED_AUTHOR_LIST, directory(DISAMBIGUATION_WORKING_DIR)
+    run:
+        shell("python workflow/disambiguation.py {ES_USERNAME} {ES_PASSWORD} {ES_ENDPOINT} {WOS_UID_FILE} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}")
