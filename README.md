@@ -64,3 +64,5 @@ ln -s /gpfs/science-genome/WoS-disambiguation/ data
 - snakemake
 - requests
 - sqlite3
+- joblib
+- hashlib
