@@ -27,6 +27,7 @@ data_dir: "./data/"
 es_password: "password for ElasticSearch"
 es_username: "usename for ElasticSearch"
 es_endpoint: "localhost:9200/wos/_search/"
+shared_dir: "/gpfs/sciencegenome/WoS-disambiguation"
 ```
 
 Don't worry. The config.yaml is gitignored and won't be pushed to the remote. 
