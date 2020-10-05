@@ -26,7 +26,7 @@ if __name__ == "__main__":
         conn,
     )
 
-    #if os.path.exists(OUTPUT_DB):
+    # if os.path.exists(OUTPUT_DB):
     #    os.remove(OUTPUT_DB)
 
     conn = sqlite3.connect(INPUT_DB)

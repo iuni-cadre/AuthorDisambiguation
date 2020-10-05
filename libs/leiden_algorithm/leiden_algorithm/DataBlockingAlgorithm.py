@@ -190,8 +190,12 @@ class DataBlockingAlgorithm:
             sub_name_paper_table = name_paper_table[
                 name_paper_table.block_id == block_id
             ].drop_duplicates()
-            sub_name_table = name_table[name_table.block_id == block_id].drop_duplicates()
-            sub_block_table = block_table[block_table.block_id == block_id].drop_duplicates()
+            sub_name_table = name_table[
+                name_table.block_id == block_id
+            ].drop_duplicates()
+            sub_block_table = block_table[
+                block_table.block_id == block_id
+            ].drop_duplicates()
             sub_paper_table = pd.merge(
                 sub_name_paper_table[["paper_id"]], paper_table, on="paper_id"
             ).drop_duplicates()
@@ -219,7 +223,7 @@ class DataBlockingAlgorithm:
             # Output to SQL
             #
             output_db = "%s/%s.db" % (output_dir, block_name)
-            #if os.path.exists(output_db):
+            # if os.path.exists(output_db):
             #    os.remove(output_db)
             sub_conn = sqlite3.connect(output_db)
 

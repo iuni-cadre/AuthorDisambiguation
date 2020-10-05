@@ -132,13 +132,17 @@ def to_string_array(a):
     """from numpy array to string compatible with sql in c"""
     return ",".join(['"%s"' % b for b in a])
 
+
 def get_connected_component(W):
-    if isinstance(W,np.ndarray):
+    if isinstance(W, np.ndarray):
         G = nx.from_numpy_matrix(W)
     else:
         G = nx.from_scipy_sparse_matrix(W)
-    comps = [np.array(list(c)) for c in sorted(nx.connected_components(G), key=len, reverse=True)]
-    cids = np.zeros(W.shape[0], dtype= int)
+    comps = [
+        np.array(list(c))
+        for c in sorted(nx.connected_components(G), key=len, reverse=True)
+    ]
+    cids = np.zeros(W.shape[0], dtype=int)
     for c, comp in enumerate(comps):
         cids[comp] = c
     return cids

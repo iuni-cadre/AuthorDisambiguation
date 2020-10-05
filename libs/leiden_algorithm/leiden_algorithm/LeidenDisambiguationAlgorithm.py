@@ -16,6 +16,7 @@ from joblib import Parallel, delayed
 from .DataBlockingAlgorithm import DataBlockingAlgorithm
 from .ScoringRule import ScoringRule
 
+
 class LeidenDisambiguationAlgorithm:
     """
     Leiden Disambiguation Algorithm. 
@@ -83,7 +84,7 @@ class LeidenDisambiguationAlgorithm:
             shutil.rmtree(self.working_dir)
         except OSError as e:
             pass
-            #print("Error: %s : %s" % (self.working_dir, e.strerror))
+            # print("Error: %s : %s" % (self.working_dir, e.strerror))
 
         if not os.path.exists(self.working_dir):
             os.makedirs(self.working_dir)
