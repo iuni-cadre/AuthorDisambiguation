@@ -18,7 +18,7 @@ if __name__ == "__main__":
     WORKING_DIR = sys.argv[7]
     OUTPUT = sys.argv[8]
 
-    wos_ids = pd.read_csv(INPUT_WOS_FILE)["UID"].values.tolist()
+    wos_ids = pd.read_csv(INPUT_WOS_FILE)["UID"].drop_duplicates().values.tolist()
 
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
