@@ -53,6 +53,9 @@ if __name__ == "__main__":
     df = pd.merge(
         predicted_table, gtruth_table, on=["WoSid", "author_order"], how="left"
     )
+    df = df.dropna()
+    df["author_order"] = df["author_order"].astype(int)
+    df["ID_researcher"] = df["ID_researcher"].astype(int)
 
     # Rename the columns for interpretability
     df = df[["disambiguated_author_id", "ID_researcher", "WoSid"]].rename(
