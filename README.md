@@ -52,7 +52,7 @@ ssh -i $privatekey -N -L $port:$username@localhost:$port $server
 cp -r /gpfs/science-genome/WoS-disambiguation/ data/
 ```
 
-If the disk space is your concern, use the symbolic link, i.e., under the root of this repository,
+If the disk space is the concern, use the symbolic link, i.e., under the root of this repository,
 
 ```
 ln -s /gpfs/science-genome/WoS-disambiguation/ data/
