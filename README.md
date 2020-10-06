@@ -44,13 +44,20 @@ port=9200
 ssh -i $privatekey -N -L $port:$username@localhost:$port $server
 ```
 
-### Symbolic link to the shared directory
+### Linking to the shared directory
 
-Under the root of this repository,
+(Updated) Because the IO is the major bottleneck of the Leiden algorithm, I recommend copying the entire shared folder to your local:
 
 ```
-ln -s /gpfs/science-genome/WoS-disambiguation/ data
+cp -r /gpfs/science-genome/WoS-disambiguation/ data/
 ```
+
+If the disk space is your concern, use the symbolic link, i.e., under the root of this repository,
+
+```
+ln -s /gpfs/science-genome/WoS-disambiguation/ data/
+```
+
 
 
 ## Packages
