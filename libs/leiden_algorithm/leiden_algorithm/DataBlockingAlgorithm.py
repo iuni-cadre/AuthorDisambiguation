@@ -449,6 +449,8 @@ def parse_paper_info(result):
 
 def get_first_char(x, default=""):
     if isinstance(x, str):
+        if len(x) == 0:
+            return ""
         return x[0]
     else:
         return default
