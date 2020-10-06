@@ -8,14 +8,18 @@ import os
 import shutil
 import hashlib
 from tqdm import tqdm
+from .utils import *
+from joblib import Parallel, delayed
 
 
 class DataBlockingAlgorithm:
-    def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB):
+    def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs = 30):
         self.es_end_point = "http://{user}:{password}@{endpoint}".format(
             user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
         )
         self.conn = sqlite3.connect(CITATION_DB)
+        self.CITATION_DB = CITATION_DB
+        self.n_jobs = n_jobs
 
     def run(self, wos_ids, output_dir, writing_mode="append"):
 
@@ -25,10 +29,10 @@ class DataBlockingAlgorithm:
         #
         # Parse
         #
-        address_table = self.parse_address_name(results)
-        author_table = self.parse_author_name(results)
-        paper_info = self.parse_paper_info(results)
-        grant_table = self.parse_grant_name(results)
+        address_table = parse_address_name(results)
+        author_table = parse_author_name(results)
+        paper_info = parse_paper_info(results)
+        grant_table = parse_grant_name(results)
 
         #
         # Make name_table and block_table
@@ -50,7 +54,7 @@ class DataBlockingAlgorithm:
             name_table = pd.merge(
                 author_table, block_table, on="normalized_name", how="left"
             )
-            name_table = name_table[
+            name_table =slice_columns( name_table,
                 [
                     "name",
                     "initials",
@@ -59,7 +63,7 @@ class DataBlockingAlgorithm:
                     "normalized_name",
                     "block_id",
                 ]
-            ].drop_duplicates()
+            ).drop_duplicates()
 
             # Normalize
             name_table["first_name"] = name_table["first_name"].str.replace(
@@ -84,7 +88,7 @@ class DataBlockingAlgorithm:
                 )
                 + "_"
                 + name_table["first_name"].apply(
-                    lambda x: self.get_first_char(x).lower()
+                    lambda x: get_first_char(x).lower()
                 )
             )
             short_name_list = name_table["short_name"].drop_duplicates().values
@@ -119,9 +123,7 @@ class DataBlockingAlgorithm:
 
             if "_addr_no" is not None:
                 name_paper_table["_addr_no"] = None
-            name_paper_table = name_paper_table[
-                ["name_id", "paper_id", "email_address", "_addr_no"]
-            ]
+            name_paper_table = slice_columns(name_paper_table, ["name_id", "paper_id", "email_address", "_addr_no"])
 
             def concat(x):
                 s = "_".join(["%s" % v for k, v in x.items()])
@@ -182,8 +184,9 @@ class DataBlockingAlgorithm:
         if writing_mode == "w":
             shutil.rmtree(output_dir)
             os.mkdir(output_dir)
+        
+        def export_block_to_sql(block, name_paper_table, name_table, block_table, paper_table, name_paper_address_table, paper_address_table, grant_table, CITATION_DB, output_dir):
 
-        for _, block in block_table.iterrows():
             block_name = block["normalized_name"]
             block_id = block["block_id"]
 
@@ -216,7 +219,7 @@ class DataBlockingAlgorithm:
                 "select citing as source, cited as target from citation_table where source in ({wos_ids}) or target in ({wos_ids})".format(
                     wos_ids=",".join(['"%s"' % s for s in wos_ids])
                 ),
-                self.conn,
+                sqlite3.connect(CITATION_DB),
             ).dropna()
 
             #
@@ -259,6 +262,8 @@ class DataBlockingAlgorithm:
             )
             sub_conn.close()
 
+        Parallel(n_jobs=self.n_jobs)(delayed(export_block_to_sql)(block, name_paper_table, name_table, block_table, paper_table, name_paper_address_table, paper_address_table, grant_table, self.CITATION_DB, output_dir) for _, block in block_table.iterrows())
+
     #
     # Retrieve the bibliographics from the UID
     #
@@ -280,185 +285,172 @@ class DataBlockingAlgorithm:
             all_results += results["hits"]["hits"]
         return all_results
 
-    #
-    # Parse the retrieved json and store them as pandas table
-    #
-    # Decorator for Database class
-    def safe_parse(parse_func):
-        def wrapper(self, results, *args, **kwargs):
-            df_list = []
-            for result in results:
-                UID = result["_id"]
-                df = parse_func(self, result, *args, **kwargs)
-                if df is None:
-                    continue
-                df["paper_id"] = UID
-                df_list += [df]
-            df = pd.concat(df_list, ignore_index=True)
+#
+# Parse the retrieved json and store them as pandas table
+#
+# Decorator for Database class
+def safe_parse(parse_func, n_jobs = 20):
+    def wrapper(results, *args, **kwargs):
+        df_list = []
+        def func(result):
+            UID = result["_id"]
+            df = parse_func(result, *args, **kwargs)
+            if df is None:
+                return None 
+            df["paper_id"] = UID
             return df
+        df_list = Parallel(n_jobs=n_jobs)(delayed(func)(result) for result in results)
+        df_list = [df for df in df_list if df is not None]
+        df = pd.concat(df_list, ignore_index=True)
+        return df
+    return wrapper
 
-        return wrapper
-
-    @safe_parse
-    def parse_grant_name(self, result):
-        fund_ack = result["_source"]["doc"].get("fund_ack", [{"grants": {"grant": []}}])
-        grants = [r["grants"]["grant"] for r in fund_ack]
-        grant_ids = [
-            r["grant_ids"]["grant_id"]
-            for r in list(itertools.chain(*grants))
-            if "grant_ids" in r
-        ]
-        merged = []
-        for grant_id in grant_ids:
-            if isinstance(grant_id, list):
-                merged += grant_id
+@safe_parse
+def parse_grant_name(result):
+    fund_ack = result["_source"]["doc"].get("fund_ack", [{"grants": {"grant": []}}])
+    grants = [r["grants"]["grant"] for r in fund_ack]
+    grant_ids = [
+        r["grant_ids"]["grant_id"]
+        for r in list(itertools.chain(*grants))
+        if "grant_ids" in r
+    ]
+    merged = []
+    for grant_id in grant_ids:
+        if isinstance(grant_id, list):
+            merged += grant_id
+        else:
+            if len(grant_id) == 0:
+                merged += [None]
             else:
-                if len(grant_id) == 0:
-                    merged += [None]
-                else:
-                    merged += [grant_id]
-        df = pd.DataFrame(merged, columns=["grant_id"])
-        return df
+                merged += [grant_id]
+    df = pd.DataFrame(merged, columns=["grant_id"])
+    return df
 
-    @safe_parse
-    def parse_address_name(self, result):
-        def get_pref_records(records):
-            if len(records) == 0:
-                return None
-            for record in records:
-                if "_pref" in record:
-                    return record
-            return records[0]
-
-        def get_department(dept):
-            if isinstance(dept, list):
-                return dept[0]
-            return dept
-
-        address_name = result["_source"]["doc"].get("address_name", [])
-        merged = [r["address_spec"] for r in list(itertools.chain(*address_name))]
-        df = pd.DataFrame(merged)
-
-        if df.shape[0] == 0:
+@safe_parse
+def parse_address_name(result):
+    def get_pref_records(records):
+        if len(records) == 0:
             return None
+        for record in records:
+            if "_pref" in record:
+                return record
+        return records[0]
 
-        if "suborganizations" not in df.columns:
-            df["suborganizations"] = None
-        df = df.rename(
-            columns={"organizations": "organization", "suborganizations": "department",}
-        )
-        df = df[
-            [
-                "full_address",
-                "city",
-                "country",
-                "organization",
-                "department",
-                "_addr_no",
-            ]
+    def get_department(dept):
+        if isinstance(dept, list):
+            return dept[0]
+        return dept
+
+    address_name = result["_source"]["doc"].get("address_name", [])
+    merged = [r["address_spec"] for r in list(itertools.chain(*address_name))]
+    df = pd.DataFrame(merged)
+
+    if df.shape[0] == 0:
+        return None
+
+    if "suborganizations" not in df.columns:
+        df["suborganizations"] = None
+    df = df.rename(
+        columns={"organizations": "organization", "suborganizations": "department",}
+    )
+    df = df[
+        [
+            "full_address",
+            "city",
+            "country",
+            "organization",
+            "department",
+            "_addr_no",
         ]
-        df["organization"] = df["organization"].apply(
-            lambda x: get_pref_records(x.get("organization", []))["_VALUE"]
+    ]
+    df["organization"] = df["organization"].apply(
+        lambda x: get_pref_records(x.get("organization", []))["_VALUE"] if isinstance(x, dict) else None
+    )
+    df["department"] = (
+        df["department"]
+        .apply(
+            lambda x: get_department(x["suborganization"])
+            if isinstance(x, dict)
+            else None
         )
-        df["department"] = (
-            df["department"]
-            .apply(
-                lambda x: get_department(x["suborganization"])
-                if isinstance(x, dict)
-                else None
-            )
-            .astype(str)
-        )
-        return df
+        .astype(str)
+    )
+    return df
 
-    @safe_parse
-    def parse_author_name(self, result):
-        def get_initials(first_name, last_name):
-            return self.get_first_char(first_name) + self.get_first_char(last_name)
+@safe_parse
+def parse_author_name(result):
+    def get_initials(first_name, last_name):
+        return get_first_char(first_name) + get_first_char(last_name)
 
-        def get_normalized_name(first_name, last_name):
-            def get_name(x, default=""):
-                if isinstance(x, str):
-                    return x.lower()
-                else:
-                    return default
+    def get_normalized_name(first_name, last_name):
+        def get_name(x, default=""):
+            if isinstance(x, str):
+                return x.lower()
+            else:
+                return default
 
-            return get_name(last_name) + get_name(self.get_first_char(first_name))
+        return get_name(last_name) + get_name(get_first_char(first_name))
 
-        author_name = result["_source"]["doc"].get("name", [])
-        df = pd.DataFrame([r for r in list(itertools.chain(*author_name))])
+    author_name = result["_source"]["doc"].get("name", [])
+    df = pd.DataFrame([r for r in list(itertools.chain(*author_name))])
 
-        # Create the normalized name and initials
-        df = df.rename(columns={"wos_standard": "name"})
-        df["initials"] = df.apply(
-            lambda x: get_initials(x["first_name"], x["last_name"]), axis=1
-        )
-        df["normalized_name"] = df.apply(
-            lambda x: get_normalized_name(x["first_name"], x["last_name"]), axis=1
-        )
-        return df
+    # Create the normalized name and initials
+    df = df.rename(columns={"wos_standard": "name"})
+    df["initials"] = df.apply(
+        lambda x: get_initials(x.get("first_name", ""), x.get("last_name", "")), axis=1
+    )
+    df["normalized_name"] = df.apply(
+        lambda x: get_normalized_name(x.get("first_name", ""), x.get("last_name", "")), axis=1
+    )
+    return df
 
-    @safe_parse
-    def parse_paper_info(self, result):
-        #
-        # Publication year
-        #
-        pub_info = result["_source"]["doc"].get("pub_info", [])
-        if len(pub_info) >= 1:
-            pub_year = pub_info[0].get("_pubyear", float("NaN"))
-        else:
-            pub_year = float("NaN")
+@safe_parse
+def parse_paper_info(result):
+    #
+    # Publication year
+    #
+    pub_info = result["_source"]["doc"].get("pub_info", [])
+    if len(pub_info) >= 1:
+        pub_year = pub_info[0].get("_pubyear", float("NaN"))
+    else:
+        pub_year = float("NaN")
 
-        #
-        # Titles and source
-        #
-        titles = result["_source"]["doc"].get("titles", [])
-        if len(titles) > 0:
-            titles = titles[0].get("title", [])
-            title = ""
-            source = ""
-            source_iso = ""
-            for r in titles:
-                if r["_type"] == "source":
-                    source = r["_VALUE"]
-                elif r["_type"] == "abbrev_iso":
-                    source_iso = r["_VALUE"]
-                elif r["_type"] == "item":
-                    title = r["_VALUE"]
+    #
+    # Titles and source
+    #
+    titles = result["_source"]["doc"].get("titles", [])
+    if len(titles) > 0:
+        titles = titles[0].get("title", [])
+        title = ""
+        source = ""
+        source_iso = ""
+        for r in titles:
+            if r["_type"] == "source":
+                source = r["_VALUE"]
+            elif r["_type"] == "abbrev_iso":
+                source_iso = r["_VALUE"]
+            elif r["_type"] == "item":
+                title = r["_VALUE"]
 
-        #
-        # Grant number not implemented
-        #
-        df = pd.DataFrame(
-            [
-                {
-                    "source": source,
-                    "title": title,
-                    "source_iso": source_iso,
-                    "pub_year": pub_year,
-                }
-            ]
-        )
-        return df
+    #
+    # Grant number not implemented
+    #
+    df = pd.DataFrame(
+        [
+            {
+                "source": source,
+                "title": title,
+                "source_iso": source_iso,
+                "pub_year": pub_year,
+            }
+        ]
+    )
+    return df
 
-    def get_first_char(self, x, default=""):
-        if isinstance(x, str):
-            return x[0]
-        else:
-            return default
-
-
-# if __name__ == "__main__":
-#
-#    WOS_ID_FILE = "../data/testData.csv"
-#    CITATION_DB = "../data/wos-citation.db"
-#    ES_PASSWORD = "FSailing4046"
-#    ES_USERNAME = "skojaku"
-#    ES_ENDPOINT = "localhost:9200/wos/_search/"
-#
-#    # Retrieve the wos_ids
-#    wos_ids = pd.read_csv(WOS_ID_FILE)["UID"].drop_duplicates().values.tolist()
-#
-#    db=DataBlockingAlgorithm(ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB)
-#
-#    db.run(wos_ids, "tmp")
+def get_first_char(x, default=""):
+    if isinstance(x, str):
+        if len(x) == 0:
+            return ""
+        return x[0]
+    else:
+        return default

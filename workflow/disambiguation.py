@@ -1,4 +1,5 @@
 import numpy as np
+import yaml
 import pandas as pd
 import os
 import sys
@@ -9,16 +10,25 @@ from leiden_algorithm import LeidenDisambiguationAlgorithm
 
 if __name__ == "__main__":
 
-    ES_USERNAME = sys.argv[1]
-    ES_PASSWORD = sys.argv[2]
-    ES_ENDPOINT = sys.argv[3]
-    INPUT_WOS_FILE = sys.argv[4]
-    CITATION_DB = sys.argv[5]
-    GENERAL_NAME_LIST_FILE = sys.argv[6]
-    WORKING_DIR = sys.argv[7]
-    OUTPUT = sys.argv[8]
+    ES_CONFIG_FILE = sys.argv[1]
+    INPUT_WOS_FILE = sys.argv[2]
+    WOS_ID_COLUMN_NAME = sys.argv[3]
+    CITATION_DB = sys.argv[4]
+    GENERAL_NAME_LIST_FILE = sys.argv[5]
+    WORKING_DIR = sys.argv[6]
+    OUTPUT = sys.argv[7]
 
-    wos_ids = pd.read_csv(INPUT_WOS_FILE)["UID"].drop_duplicates().values.tolist()
+    with open(ES_CONFIG_FILE) as f:
+        ES = yaml.safe_load(f)
+        ES_USERNAME = ES["es_username"]
+        ES_PASSWORD = ES["es_password"]
+        ES_ENDPOINT = ES["es_endpoint"]
+
+    wos_ids = (
+        pd.read_csv(INPUT_WOS_FILE)[WOS_ID_COLUMN_NAME]
+        .drop_duplicates()
+        .values.tolist()
+    )
 
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
@@ -29,6 +39,7 @@ if __name__ == "__main__":
         ES_ENDPOINT,
         CITATION_DB,
         general_name_list,
+        n_jobs=30,
     )
 
     lda.init_working_dir()

@@ -9,10 +9,10 @@ import shutil
 import os
 import sys
 from pathlib import Path
-from utils import *
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
+from .utils import *
 from .DataBlockingAlgorithm import DataBlockingAlgorithm
 from .ScoringRule import ScoringRule
 
@@ -45,6 +45,7 @@ class LeidenDisambiguationAlgorithm:
         CITATION_DB,
         general_name_list,
         threshold=10,
+        n_jobs = 30
     ):
         """
         Params
@@ -64,9 +65,11 @@ class LeidenDisambiguationAlgorithm:
             List of general names
         threshold: float
             Threshold value for clustering
+        n_jobs : int
+            Number of jobs
         """
         self.data_blocking_alg = DataBlockingAlgorithm(
-            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB
+            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs = n_jobs
         )
         self.working_dir = working_dir
         self.general_name_list = general_name_list
@@ -93,7 +96,7 @@ class LeidenDisambiguationAlgorithm:
         os.makedirs(self.clustered_dir)
         os.makedirs(self.disambiguated_dir)
 
-    def data_blocking(self, wos_ids, max_chunk=10):
+    def data_blocking(self, wos_ids, max_chunk=500):
         num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
         for pid in tqdm(range(num_partitions), desc="Grouping data"):
             n0 = pid * max_chunk
@@ -111,7 +114,6 @@ class LeidenDisambiguationAlgorithm:
             block_list = [Path(b).stem for b in block_list]
 
         for block_name in tqdm(block_list, desc="Clustering"):
-            dbname = self.blocks_dir + "/" + block_name + ".db"
             result_file_name = self.clustered_dir + "/" + block_name + ".csv"
 
             scoring_func = ScoringRule(self.general_name_list)
