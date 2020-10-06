@@ -11,7 +11,7 @@ SHARED_DIR = config["shared_dir"]
 
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
-WOS_CITATION_DB = j(SHARED_DIR, "wos-citation.db")
+WOS_CITATION_DB = j("data/", "wos-citation.db")
 
 # Author Name count file
 NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
@@ -21,13 +21,17 @@ GENERAL_NAME_LIST_FILE = j(SHARED_DIR, "general-name-list.csv")
 WOS_UID_FILE = j(SHARED_DIR, "disambiguationBenchmarkLabels.csv")
 WOS_ID_COLUMN_NAME = "WoSid"
 WOS_UID_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.csv")
-SAMPLE_NUM = 3000
+SAMPLE_NUM = 10000
 
 # Working directory for the Leiden disambiguation algorithm
 DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
 
 # Results
 DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
+
+# Validations
+GROUND_TRUTH_AUTHOR_LIST = WOS_UID_FILE
+VALIDATION_RESULT = "data/validation-disambiguated-authors.csv"
 
 
 rule all:
@@ -77,5 +81,15 @@ rule disambiguation:
         directory(DISAMBIGUATION_WORKING_DIR),
     run:
         shell(
-            "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
+
+
+rule generate_validation_result:
+    input:
+        DISAMBIGUATED_AUTHOR_LIST,
+        GROUND_TRUTH_AUTHOR_LIST,
+    output:
+        VALIDATION_RESULT,
+    run:
+        shell("python workflow/generate-validation-file.py {input} {output}")
