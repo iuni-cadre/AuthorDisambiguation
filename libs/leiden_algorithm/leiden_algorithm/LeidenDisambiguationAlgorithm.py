@@ -45,7 +45,7 @@ class LeidenDisambiguationAlgorithm:
         CITATION_DB,
         general_name_list,
         threshold=10,
-        n_jobs = 30
+        n_jobs=30,
     ):
         """
         Params
@@ -69,7 +69,7 @@ class LeidenDisambiguationAlgorithm:
             Number of jobs
         """
         self.data_blocking_alg = DataBlockingAlgorithm(
-            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs = n_jobs
+            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=n_jobs
         )
         self.working_dir = working_dir
         self.general_name_list = general_name_list
@@ -80,6 +80,7 @@ class LeidenDisambiguationAlgorithm:
             self.disambiguated_dir + "/disambiguated-author-list.csv"
         )
         self.threshold = threshold
+        self.n_jobs = n_jobs
 
     def init_working_dir(self):
 
@@ -96,7 +97,7 @@ class LeidenDisambiguationAlgorithm:
         os.makedirs(self.clustered_dir)
         os.makedirs(self.disambiguated_dir)
 
-    def data_blocking(self, wos_ids, max_chunk=500):
+    def data_blocking(self, wos_ids, max_chunk=50):
         num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
         for pid in tqdm(range(num_partitions), desc="Grouping data"):
             n0 = pid * max_chunk
@@ -105,27 +106,34 @@ class LeidenDisambiguationAlgorithm:
             self.data_blocking_alg.run(sub_wos_ids, self.blocks_dir)
 
     def clustering(self, block_list=[]):
-        def clustering_method(self, W):
-            W[W < self.threshold] = 0
-            return get_connected_component(W)
 
         if len(block_list) == 0:
             block_list = glob.glob(self.blocks_dir + "/*.db")
             block_list = [Path(b).stem for b in block_list]
 
-        for block_name in tqdm(block_list, desc="Clustering"):
-            result_file_name = self.clustered_dir + "/" + block_name + ".csv"
+        def _clustering(input_db, general_name_list, block_name, result_file_name):
+            def clustering_method(self, W):
+                W[W < self.threshold] = 0
+                return get_connected_component(W)
 
-            scoring_func = ScoringRule(self.general_name_list)
-            W, author_paper_table = scoring_func.eval(
-                self.blocks_dir + "/" + block_name + ".db"
-            )
+            scoring_func = ScoringRule(general_name_list)
+            W, author_paper_table = scoring_func.eval(input_db)
 
             cids = get_connected_component(W)
 
             author_paper_table = author_paper_table.copy()
             author_paper_table["cluster_id"] = ["%s_%d" % (block_name, c) for c in cids]
             author_paper_table.to_csv(result_file_name, index=False)
+
+        Parallel(n_jobs=self.n_jobs)(
+            delayed(_clustering)(
+                self.blocks_dir + "/" + block_name + ".db",
+                self.general_name_list,
+                block_name,
+                self.clustered_dir + "/" + block_name + ".csv",
+            )
+            for block_name in tqdm(block_list, desc="Clustering")
+        )
 
     def post_process(self, block_list=[], n_jobs=10):
         if len(block_list) == 0:
@@ -165,7 +173,7 @@ class LeidenDisambiguationAlgorithm:
             on="cluster_id",
             how="left",
         )
-        df = df[["paper_id", "name", "disambiguated_author_id"]]
+        df = df[["paper_id", "name", "disambiguated_author_id", "_seq_no"]]
         df.to_csv(
             self.disambiguated_dir + "/disambiguated-author-list.csv",
             sep=",",

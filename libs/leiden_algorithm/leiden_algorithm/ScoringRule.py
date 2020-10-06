@@ -63,7 +63,14 @@ class ScoringRule:
         return (
             W,
             self.author_paper_table[
-                ["name_id", "paper_id", "name_paper_id", "email_address", "name"]
+                [
+                    "name_id",
+                    "paper_id",
+                    "name_paper_id",
+                    "email_address",
+                    "name",
+                    "_seq_no",
+                ]
             ],
         )
 

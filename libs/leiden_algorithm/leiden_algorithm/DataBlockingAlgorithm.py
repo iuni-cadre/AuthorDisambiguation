@@ -13,7 +13,7 @@ from joblib import Parallel, delayed
 
 
 class DataBlockingAlgorithm:
-    def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs = 30):
+    def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=30):
         self.es_end_point = "http://{user}:{password}@{endpoint}".format(
             user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
         )
@@ -54,7 +54,8 @@ class DataBlockingAlgorithm:
             name_table = pd.merge(
                 author_table, block_table, on="normalized_name", how="left"
             )
-            name_table =slice_columns( name_table,
+            name_table = slice_columns(
+                name_table,
                 [
                     "name",
                     "initials",
@@ -62,7 +63,7 @@ class DataBlockingAlgorithm:
                     "last_name",
                     "normalized_name",
                     "block_id",
-                ]
+                ],
             ).drop_duplicates()
 
             # Normalize
@@ -87,9 +88,7 @@ class DataBlockingAlgorithm:
                     lambda x: x.lower() if isinstance(x, str) else ""
                 )
                 + "_"
-                + name_table["first_name"].apply(
-                    lambda x: get_first_char(x).lower()
-                )
+                + name_table["first_name"].apply(lambda x: get_first_char(x).lower())
             )
             short_name_list = name_table["short_name"].drop_duplicates().values
             name_table = pd.merge(
@@ -123,7 +122,10 @@ class DataBlockingAlgorithm:
 
             if "_addr_no" is not None:
                 name_paper_table["_addr_no"] = None
-            name_paper_table = slice_columns(name_paper_table, ["name_id", "paper_id", "email_address", "_addr_no"])
+            name_paper_table = slice_columns(
+                name_paper_table,
+                ["name_id", "paper_id", "email_address", "_addr_no", "_seq_no"],
+            )
 
             def concat(x):
                 s = "_".join(["%s" % v for k, v in x.items()])
@@ -184,8 +186,19 @@ class DataBlockingAlgorithm:
         if writing_mode == "w":
             shutil.rmtree(output_dir)
             os.mkdir(output_dir)
-        
-        def export_block_to_sql(block, name_paper_table, name_table, block_table, paper_table, name_paper_address_table, paper_address_table, grant_table, CITATION_DB, output_dir):
+
+        def export_block_to_sql(
+            block,
+            name_paper_table,
+            name_table,
+            block_table,
+            paper_table,
+            name_paper_address_table,
+            paper_address_table,
+            grant_table,
+            CITATION_DB,
+            output_dir,
+        ):
 
             block_name = block["normalized_name"]
             block_id = block["block_id"]
@@ -262,7 +275,21 @@ class DataBlockingAlgorithm:
             )
             sub_conn.close()
 
-        Parallel(n_jobs=self.n_jobs)(delayed(export_block_to_sql)(block, name_paper_table, name_table, block_table, paper_table, name_paper_address_table, paper_address_table, grant_table, self.CITATION_DB, output_dir) for _, block in block_table.iterrows())
+        Parallel(n_jobs=self.n_jobs)(
+            delayed(export_block_to_sql)(
+                block,
+                name_paper_table,
+                name_table,
+                block_table,
+                paper_table,
+                name_paper_address_table,
+                paper_address_table,
+                grant_table,
+                self.CITATION_DB,
+                output_dir,
+            )
+            for _, block in block_table.iterrows()
+        )
 
     #
     # Retrieve the bibliographics from the UID
@@ -285,25 +312,30 @@ class DataBlockingAlgorithm:
             all_results += results["hits"]["hits"]
         return all_results
 
+
 #
 # Parse the retrieved json and store them as pandas table
 #
 # Decorator for Database class
-def safe_parse(parse_func, n_jobs = 20):
+def safe_parse(parse_func, n_jobs=20):
     def wrapper(results, *args, **kwargs):
         df_list = []
+
         def func(result):
             UID = result["_id"]
             df = parse_func(result, *args, **kwargs)
             if df is None:
-                return None 
+                return None
             df["paper_id"] = UID
             return df
+
         df_list = Parallel(n_jobs=n_jobs)(delayed(func)(result) for result in results)
         df_list = [df for df in df_list if df is not None]
         df = pd.concat(df_list, ignore_index=True)
         return df
+
     return wrapper
+
 
 @safe_parse
 def parse_grant_name(result):
@@ -325,6 +357,7 @@ def parse_grant_name(result):
                 merged += [grant_id]
     df = pd.DataFrame(merged, columns=["grant_id"])
     return df
+
 
 @safe_parse
 def parse_address_name(result):
@@ -354,17 +387,12 @@ def parse_address_name(result):
         columns={"organizations": "organization", "suborganizations": "department",}
     )
     df = df[
-        [
-            "full_address",
-            "city",
-            "country",
-            "organization",
-            "department",
-            "_addr_no",
-        ]
+        ["full_address", "city", "country", "organization", "department", "_addr_no",]
     ]
     df["organization"] = df["organization"].apply(
-        lambda x: get_pref_records(x.get("organization", []))["_VALUE"] if isinstance(x, dict) else None
+        lambda x: get_pref_records(x.get("organization", []))["_VALUE"]
+        if isinstance(x, dict)
+        else None
     )
     df["department"] = (
         df["department"]
@@ -376,6 +404,7 @@ def parse_address_name(result):
         .astype(str)
     )
     return df
+
 
 @safe_parse
 def parse_author_name(result):
@@ -400,9 +429,11 @@ def parse_author_name(result):
         lambda x: get_initials(x.get("first_name", ""), x.get("last_name", "")), axis=1
     )
     df["normalized_name"] = df.apply(
-        lambda x: get_normalized_name(x.get("first_name", ""), x.get("last_name", "")), axis=1
+        lambda x: get_normalized_name(x.get("first_name", ""), x.get("last_name", "")),
+        axis=1,
     )
     return df
+
 
 @safe_parse
 def parse_paper_info(result):
@@ -446,6 +477,7 @@ def parse_paper_info(result):
         ]
     )
     return df
+
 
 def get_first_char(x, default=""):
     if isinstance(x, str):

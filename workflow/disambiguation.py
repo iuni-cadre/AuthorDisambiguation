@@ -39,7 +39,7 @@ if __name__ == "__main__":
         ES_ENDPOINT,
         CITATION_DB,
         general_name_list,
-        n_jobs=30,
+        n_jobs=50,
     )
 
     lda.init_working_dir()
