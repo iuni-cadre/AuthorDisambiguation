@@ -147,6 +147,7 @@ def get_connected_component(W):
         cids[comp] = c
     return cids
 
+
 def slice_columns(tb, cols):
     tb = tb.copy()
     for c in cols:
