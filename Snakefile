@@ -31,7 +31,8 @@ DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
 
 # Validations
 GROUND_TRUTH_AUTHOR_LIST = WOS_UID_FILE
-VALIDATION_RESULT = "data/validation-disambiguated-authors.csv"
+DISAMBIGUATION_FOR_VALIDATION_TEST = "data/validation-disambiguated-authors.csv"
+VALIDATION_RESULT = "data/result/validation-scores.txt"
 
 
 rule all:
@@ -90,6 +91,16 @@ rule generate_validation_result:
         DISAMBIGUATED_AUTHOR_LIST,
         GROUND_TRUTH_AUTHOR_LIST,
     output:
-        VALIDATION_RESULT,
+        DISAMBIGUATION_FOR_VALIDATION_TEST,
     run:
         shell("python workflow/generate-validation-file.py {input} {output}")
+
+
+rule calc_f1score:
+    input:
+        DISAMBIGUATION_FOR_VALIDATION_TEST,
+    output:
+        VALIDATION_RESULT,
+    run:
+        shell("python workflow/calculate_pairwise_F1.py {input} {output}")
+
