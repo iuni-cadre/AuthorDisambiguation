@@ -103,4 +103,3 @@ rule calc_f1score:
         VALIDATION_RESULT,
     run:
         shell("python workflow/calculate_pairwise_F1.py {input} {output}")
-
