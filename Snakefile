@@ -1,6 +1,7 @@
 from os.path import join as j
 import numpy as np
 import glob
+import glob
 
 
 configfile: "workflow/config.yaml"
@@ -12,6 +13,10 @@ SHARED_DIR = config["shared_dir"]
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
 WOS_CITATION_DB = j("data/", "wos-citation.db")
+
+# Files to construct the database for json files
+WOS_JSON_DIR = glob.glob("/gpfs/sciencegenome/WoSjson2019")
+WOS_SQL_TABLE = j("data", "wos-json.db")
 
 # Author Name count file
 NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
@@ -103,3 +108,12 @@ rule calc_f1score:
         VALIDATION_RESULT,
     run:
         shell("python workflow/calculate_pairwise_F1.py {input} {output}")
+
+
+rule to_json2sql:
+    input:
+        WOS_JSON_DIR,
+    output:
+        WOS_SQL_TABLE,
+    run:
+        shell("python workflow/wosJson2Sql.py {input} {output}")
