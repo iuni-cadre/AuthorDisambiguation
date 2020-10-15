@@ -32,10 +32,11 @@ class DataBlockingAlgorithm:
         #
         # Parse
         #
-        address_table = parse_address_name(json_records)
-        author_table = parse_author_name(json_records)
-        paper_info = parse_paper_info(json_records)
-        grant_table = parse_grant_name(json_records)
+        address_table = parse_address_name(json_records, n_jobs = self.n_jobs)
+        author_table = parse_author_name(json_records, n_jobs = self.n_jobs)
+        paper_info = parse_paper_info(json_records, n_jobs = self.n_jobs)
+        grant_table = parse_grant_name(json_records, n_jobs = self.n_jobs)
+
 
         #
         # Make name_table and block_table
@@ -119,6 +120,7 @@ class DataBlockingAlgorithm:
                     "email_addr": "email_address",
                 }
             )
+            
             name_paper_table = pd.merge(
                 name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
             ).drop(columns="name")
@@ -164,7 +166,7 @@ class DataBlockingAlgorithm:
             )
             name_paper_addr_table = pd.merge(
                 name_paper_addr_table[["name_paper_id", "paper_id", "_addr_no"]],
-                address_table,
+                address_table.rename(columns = {"UID": "paper_id"}),
                 on=["paper_id", "_addr_no"],
                 how="left",
             )
@@ -181,7 +183,7 @@ class DataBlockingAlgorithm:
         paper_address_table = address_table[pd.isna(address_table["_addr_no"])]
 
         # (paper_table)
-        paper_table = paper_info.copy().rename(columns={"source": "journal"})
+        paper_table = paper_info.copy().rename(columns={"source": "journal", "UID":"paper_id"})
 
         #
         # Save the generated tables
@@ -231,6 +233,7 @@ class DataBlockingAlgorithm:
             ).drop_duplicates()
 
             # Load the citation table
+            wos_ids = sub_paper_table.paper_id.drop_duplicates().values
             sub_citation_table = pd.read_sql(
                 "select citing as source, cited as target from citation_table where source in ({wos_ids}) or target in ({wos_ids})".format(
                     wos_ids=",".join(['"%s"' % s for s in wos_ids])
@@ -299,12 +302,12 @@ class DataBlockingAlgorithm:
 # Parse the retrieved json and store them as pandas table
 #
 # Decorator for Database class
-def safe_parse(parse_func, n_jobs=20):
-    def wrapper(results, *args, **kwargs):
+def safe_parse(parse_func):
+    def wrapper(results, n_jobs=1, *args, **kwargs):
         df_list = []
 
         def func(result):
-            UID = result["_id"]
+            UID = result["UID"]
             df = parse_func(result, *args, **kwargs)
             if df is None:
                 return None
@@ -321,7 +324,7 @@ def safe_parse(parse_func, n_jobs=20):
 
 @safe_parse
 def parse_grant_name(result):
-    fund_ack = result["_source"]["doc"].get("fund_ack", [{"grants": {"grant": []}}])
+    fund_ack = [result.get("fund_ack", {"grants": {"grant": []}})]
     grants = [r["grants"]["grant"] for r in fund_ack]
     grant_ids = [
         r["grant_ids"]["grant_id"]
@@ -356,8 +359,10 @@ def parse_address_name(result):
             return dept[0]
         return dept
 
-    address_name = result["_source"]["doc"].get("address_name", [])
-    merged = [r["address_spec"] for r in list(itertools.chain(*address_name))]
+    address_name = result.get("address_name", [])
+    merged = [r["address_spec"] for r in address_name]
+    #merged = [r["address_spec"] for r in list(itertools.chain(*address_name))]
+    
     df = pd.DataFrame(merged)
 
     if df.shape[0] == 0:
@@ -365,6 +370,14 @@ def parse_address_name(result):
 
     if "suborganizations" not in df.columns:
         df["suborganizations"] = None
+    if "organizations" not in df.columns:
+        df["organizations"] = None
+    if "department" not in df.columns:
+        df["department"] = None
+    if "city" not in df.columns:
+        df["city"] = None
+    if "country" not in df.columns:
+        df["country"] = None
     df = df.rename(
         columns={"organizations": "organization", "suborganizations": "department",}
     )
@@ -402,8 +415,9 @@ def parse_author_name(result):
 
         return get_name(last_name) + get_name(get_first_char(first_name))
 
-    author_name = result["_source"]["doc"].get("name", [])
-    df = pd.DataFrame([r for r in list(itertools.chain(*author_name))])
+    author_name = result.get("name", [])
+    df = pd.DataFrame(author_name)
+    #df = pd.DataFrame([r for r in list(itertools.chain(*author_name))])
 
     # Create the normalized name and initials
     df = df.rename(columns={"wos_standard": "name"})
@@ -422,18 +436,18 @@ def parse_paper_info(result):
     #
     # Publication year
     #
-    pub_info = result["_source"]["doc"].get("pub_info", [])
+    pub_info = result.get("pub_info", [])
     if len(pub_info) >= 1:
-        pub_year = pub_info[0].get("_pubyear", float("NaN"))
+        pub_year = pub_info.get("_pubyear", float("NaN"))
     else:
         pub_year = float("NaN")
 
     #
     # Titles and source
     #
-    titles = result["_source"]["doc"].get("titles", [])
+    titles = result.get("titles", [])
     if len(titles) > 0:
-        titles = titles[0].get("title", [])
+        titles = titles.get("title", [])
         title = ""
         source = ""
         source_iso = ""

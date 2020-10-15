@@ -5,6 +5,7 @@ import pandas as pd
 
 import glob
 import shutil
+import itertools
 
 import os
 import sys
@@ -106,16 +107,18 @@ class LeidenDisambiguationAlgorithm:
 #            sub_wos_ids = wos_ids[n0:n1]
 #            self.data_blocking_alg.run(sub_wos_ids, self.blocks_dir)
 
-    def data_blocking(self, JSON_FILES, max_chunk=50):
+    def data_blocking(self, JSON_FILES):
         def to_dataframe(filename):
-            return [record for line in open(filename, "r")]
+            return [json.loads(line) for line in open(filename, "r")]
         num_files = len(JSON_FILES)
         num_chunks = np.ceil(num_files / self.n_jobs)
         for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks)):
     
-            records = Parallel(n_jobs=n_jobs)(
+            records = Parallel(n_jobs=self.n_jobs)(
                 delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
             )
+            records = list(itertools.chain(*records))
+
             self.data_blocking_alg.run(records, self.blocks_dir)
 
     def clustering(self, block_list=[]):
