@@ -1,6 +1,8 @@
 import pandas as pd
 import sqlite3
+import numpy as np
 import sys
+import os
 from joblib import Parallel, delayed
 import json
 from tqdm import tqdm
@@ -15,7 +17,9 @@ if __name__ == "__main__":
     n_jobs = 40
 
     JSON_FILES = glob.glob(JSON_DIR + "/*.json")
-    conn = sqlite3.connect(OUTPUT_SQLFILE)
+
+    if os.path.exists(OUTPUT_SQLFILE):
+        os.remove(OUTPUT_SQLFILE)
 
     def to_dataframe(filename):
         records = []
@@ -26,10 +30,16 @@ if __name__ == "__main__":
         df = pd.DataFrame(records)
         return df
 
-    df_list = Parallel(n_jobs=n_jobs)(
-        delayed(to_dataframe)(JSON_FILE) for JSON_FILE in tqdm(JSON_FILES)
-    )
+    num_files = len(JSON_FILES)
+    num_chunks = np.ceil(num_files / n_jobs)
+    for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks)):
 
-    df = pd.concat(df_list)
-    df.to_sql("json_table", conn, if_exists="replace")
-    conn.close()
+        conn = sqlite3.connect(OUTPUT_SQLFILE)
+
+        df_list = Parallel(n_jobs=n_jobs)(
+            delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
+        )
+        df = pd.concat(df_list, ignore_index=True, chunksize=500)
+        df.to_sql("json_table", conn, if_exists="append")
+
+        conn.close()
