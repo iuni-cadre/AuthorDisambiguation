@@ -14,15 +14,16 @@ from joblib import Parallel, delayed
 
 
 class DataBlockingAlgorithm:
-    def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=30):
-        self.es_end_point = "http://{user}:{password}@{endpoint}".format(
-            user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
-        )
+    def __init__(self, CITATION_DB, n_jobs=30):
+        #def __init__(self, ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=30):
+        #self.es_end_point = "http://{user}:{password}@{endpoint}".format(
+        #    user=ES_USERNAME, password=ES_PASSWORD, endpoint=ES_ENDPOINT
+        #)
         self.conn = sqlite3.connect(CITATION_DB)
         self.CITATION_DB = CITATION_DB
         self.n_jobs = n_jobs
 
-    def run(self, json_files, output_dir, writing_mode="append"):
+    def run(self, json_records, output_dir, writing_mode="append"):
         # def run(self, wos_ids, output_dir, writing_mode="append"):
 
         # Retrieve data from Elastic search
@@ -31,10 +32,10 @@ class DataBlockingAlgorithm:
         #
         # Parse
         #
-        address_table = parse_address_name(json_files)
-        author_table = parse_author_name(json_files)
-        paper_info = parse_paper_info(json_files)
-        grant_table = parse_grant_name(json_files)
+        address_table = parse_address_name(json_records)
+        author_table = parse_author_name(json_records)
+        paper_info = parse_paper_info(json_records)
+        grant_table = parse_grant_name(json_records)
 
         #
         # Make name_table and block_table

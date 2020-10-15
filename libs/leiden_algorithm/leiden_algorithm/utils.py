@@ -2,6 +2,8 @@ from scipy import sparse
 import networkx as nx
 import numpy as np
 import pandas as pd
+import requests
+import json
 
 #
 # Helper functions
@@ -155,3 +157,24 @@ def slice_columns(tb, cols):
             tb[c] = None
 
     return tb[cols]
+
+#
+# Retrieve the bibliographics from the Elastic Search
+#
+def find_papers_by_UID(uri, uids, max_request_records=1000):
+    def find_papers_by_UID(uri, uids):
+        """Simple Elasticsearch Query"""
+        query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
+        headers = {"Content-Type": "application/json"}
+        response = requests.get(uri, headers=headers, data=query)
+        results = json.loads(response.text)
+        return results
+
+    num_rounds = np.ceil(len(uids) / max_request_records).astype(int)
+    all_results = []
+    for i in range(num_rounds):
+        sidx = max_request_records * i
+        fidx = sidx + max_request_records
+        results = find_papers_by_UID(uri, uids[sidx:fidx])
+        all_results += results["hits"]["hits"]
+    return all_results

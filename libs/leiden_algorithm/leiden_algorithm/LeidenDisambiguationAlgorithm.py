@@ -25,11 +25,12 @@ class LeidenDisambiguationAlgorithm:
     -------
 
     lda = LeidenDisambiguationAlgorithm(
-        "working_directory", ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, general_name_list
+        "working_directory", CITATION_DB, general_name_list
+        #"working_directory", ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, general_name_list
     )
 
     lda.init_working_dir()
-    lda.data_blocking(wos_ids)
+    lda.data_blocking(json_files)
     lda.clustering()
     lda.post_process()
     
@@ -39,9 +40,9 @@ class LeidenDisambiguationAlgorithm:
     def __init__(
         self,
         working_dir,
-        ES_USERNAME,
-        ES_PASSWORD,
-        ES_ENDPOINT,
+        #ES_USERNAME,
+        #ES_PASSWORD,
+        #ES_ENDPOINT,
         CITATION_DB,
         general_name_list,
         threshold=10,
@@ -69,7 +70,8 @@ class LeidenDisambiguationAlgorithm:
             Number of jobs
         """
         self.data_blocking_alg = DataBlockingAlgorithm(
-            ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=n_jobs
+            CITATION_DB, n_jobs=n_jobs
+            #ES_USERNAME, ES_PASSWORD, ES_ENDPOINT, CITATION_DB, n_jobs=n_jobs
         )
         self.working_dir = working_dir
         self.general_name_list = general_name_list
@@ -87,8 +89,7 @@ class LeidenDisambiguationAlgorithm:
         try:
             shutil.rmtree(self.working_dir)
         except OSError as e:
-            pass
-            # print("Error: %s : %s" % (self.working_dir, e.strerror))
+            print("Error: %s : %s" % (self.working_dir, e.strerror))
 
         if not os.path.exists(self.working_dir):
             os.makedirs(self.working_dir)
@@ -97,13 +98,25 @@ class LeidenDisambiguationAlgorithm:
         os.makedirs(self.clustered_dir)
         os.makedirs(self.disambiguated_dir)
 
-    def data_blocking(self, wos_ids, max_chunk=50):
-        num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
-        for pid in tqdm(range(num_partitions), desc="Grouping data"):
-            n0 = pid * max_chunk
-            n1 = np.minimum(n0 + max_chunk, len(wos_ids))
-            sub_wos_ids = wos_ids[n0:n1]
-            self.data_blocking_alg.run(sub_wos_ids, self.blocks_dir)
+#    def data_blocking(self, wos_ids, max_chunk=50):
+#        num_partitions = np.ceil(len(wos_ids) / max_chunk).astype(int)
+#        for pid in tqdm(range(num_partitions), desc="Grouping data"):
+#            n0 = pid * max_chunk
+#            n1 = np.minimum(n0 + max_chunk, len(wos_ids))
+#            sub_wos_ids = wos_ids[n0:n1]
+#            self.data_blocking_alg.run(sub_wos_ids, self.blocks_dir)
+
+    def data_blocking(self, JSON_FILES, max_chunk=50):
+        def to_dataframe(filename):
+            return [record for line in open(filename, "r")]
+        num_files = len(JSON_FILES)
+        num_chunks = np.ceil(num_files / self.n_jobs)
+        for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks)):
+    
+            records = Parallel(n_jobs=n_jobs)(
+                delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
+            )
+            self.data_blocking_alg.run(records, self.blocks_dir)
 
     def clustering(self, block_list=[]):
 
