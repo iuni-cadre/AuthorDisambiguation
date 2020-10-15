@@ -1,9 +1,10 @@
 import itertools
-import numpy as np
+
+# import numpy as np
 import pandas as pd
 import sqlite3
-import requests
-import json
+
+# import json
 import os
 import shutil
 import hashlib
@@ -21,18 +22,19 @@ class DataBlockingAlgorithm:
         self.CITATION_DB = CITATION_DB
         self.n_jobs = n_jobs
 
-    def run(self, wos_ids, output_dir, writing_mode="append"):
+    def run(self, json_files, output_dir, writing_mode="append"):
+        # def run(self, wos_ids, output_dir, writing_mode="append"):
 
         # Retrieve data from Elastic search
-        results = self.find_papers_by_UID(self.es_end_point, wos_ids)
+        # results = self.find_papers_by_UID(self.es_end_point, wos_ids)
 
         #
         # Parse
         #
-        address_table = parse_address_name(results)
-        author_table = parse_author_name(results)
-        paper_info = parse_paper_info(results)
-        grant_table = parse_grant_name(results)
+        address_table = parse_address_name(json_files)
+        author_table = parse_author_name(json_files)
+        paper_info = parse_paper_info(json_files)
+        grant_table = parse_grant_name(json_files)
 
         #
         # Make name_table and block_table
@@ -290,27 +292,6 @@ class DataBlockingAlgorithm:
             )
             for _, block in block_table.iterrows()
         )
-
-    #
-    # Retrieve the bibliographics from the UID
-    #
-    def find_papers_by_UID(self, uri, uids, max_request_records=1000):
-        def find_papers_by_UID(uri, uids):
-            """Simple Elasticsearch Query"""
-            query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
-            headers = {"Content-Type": "application/json"}
-            response = requests.get(uri, headers=headers, data=query)
-            results = json.loads(response.text)
-            return results
-
-        num_rounds = np.ceil(len(uids) / max_request_records).astype(int)
-        all_results = []
-        for i in range(num_rounds):
-            sidx = max_request_records * i
-            fidx = sidx + max_request_records
-            results = find_papers_by_UID(uri, uids[sidx:fidx])
-            all_results += results["hits"]["hits"]
-        return all_results
 
 
 #
