@@ -28,6 +28,10 @@ WOS_ID_COLUMN_NAME = "WoSid"
 WOS_UID_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.csv")
 SAMPLE_NUM = 10000
 
+# Input for the full disambiguation
+#WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
+
 # Working directory for the Leiden disambiguation algorithm
 DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
 
@@ -76,10 +80,11 @@ rule random_sampling_test_data:
         )
 
 
-rule disambiguation:
+rule full_disambiguation:
     input:
-        CONFIG_FILE,
-        WOS_UID_FILE_SAMPLED,
+        #CONFIG_FILE,
+        #WOS_UID_FILE_SAMPLED,
+        WOS_JSON_FILE_DIR,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
     output:
@@ -87,7 +92,8 @@ rule disambiguation:
         directory(DISAMBIGUATION_WORKING_DIR),
     run:
         shell(
-            "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            #"python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
