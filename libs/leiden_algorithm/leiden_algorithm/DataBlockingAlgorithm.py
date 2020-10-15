@@ -23,174 +23,166 @@ class DataBlockingAlgorithm:
         self.CITATION_DB = CITATION_DB
         self.n_jobs = n_jobs
 
-    def run(self, json_records, output_dir, writing_mode="append"):
-        # def run(self, wos_ids, output_dir, writing_mode="append"):
+    def run(self, JSON_RECORDS, output_dir, writing_mode="append"):
 
-        # Retrieve data from Elastic search
-        # results = self.find_papers_by_UID(self.es_end_point, wos_ids)
-
-        #
-        # Parse
-        #
-        address_table = parse_address_name(json_records, n_jobs = self.n_jobs)
-        author_table = parse_author_name(json_records, n_jobs = self.n_jobs)
-        paper_info = parse_paper_info(json_records, n_jobs = self.n_jobs)
-        grant_table = parse_grant_name(json_records, n_jobs = self.n_jobs)
-
-
-        #
-        # Make name_table and block_table
-        #
-        def construct_block_table(author_table):
-            block_table = (
-                author_table[["normalized_name"]]
-                .drop_duplicates()
-                .reset_index()
-                .drop(columns=["index"])
-            )
-            block_table["block_id"] = block_table.apply(
-                lambda x: hashlib.sha256(str.encode(x["normalized_name"])).hexdigest(),
-                axis=1,
-            )
-            return block_table
-
-        def construct_name_table(author_block, table_block):
-            name_table = pd.merge(
-                author_table, block_table, on="normalized_name", how="left"
-            )
-            name_table = slice_columns(
-                name_table,
-                [
-                    "name",
-                    "initials",
-                    "first_name",
-                    "last_name",
-                    "normalized_name",
-                    "block_id",
-                ],
-            ).drop_duplicates()
-
-            # Normalize
-            name_table["first_name"] = name_table["first_name"].str.replace(
-                "[^a-zA-Z ]", ""
-            )
-            name_table["last_name"] = name_table["last_name"].str.replace(
-                "[^a-zA-Z ]", ""
-            )
-
-            def concat(x):
-                s = "_".join(["%s" % v for k, v in x.items()])
-                return str.encode(s)
-
-            name_table["name_id"] = name_table.apply(
-                lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
-            )
-
-            # add short name
-            name_table["short_name"] = (
-                name_table["last_name"].apply(
-                    lambda x: x.lower() if isinstance(x, str) else ""
-                )
-                + "_"
-                + name_table["first_name"].apply(lambda x: get_first_char(x).lower())
-            )
-            short_name_list = name_table["short_name"].drop_duplicates().values
-            name_table = pd.merge(
-                name_table,
-                pd.DataFrame(
-                    {
-                        "short_name": short_name_list,
-                        "short_name_id": [
-                            hashlib.sha256(str.encode(x)).hexdigest()
-                            for x in short_name_list
-                        ],
-                    }
-                ),
-                on="short_name",
-                how="left",
-            )
-            return name_table
-
-        def construct_name_paper_table(author_table, name_table):
-
-            name_paper_table = author_table.copy().rename(
-                columns={
-                    "wos_standard": "name",
-                    "UID": "paper_id",
-                    "email_addr": "email_address",
-                }
-            )
-            
-            name_paper_table = pd.merge(
-                name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
-            ).drop(columns="name")
-
-            if "_addr_no" is not None:
-                name_paper_table["_addr_no"] = None
-            name_paper_table = slice_columns(
-                name_paper_table,
-                ["name_id", "paper_id", "email_address", "_addr_no", "_seq_no"],
-            )
-
-            def concat(x):
-                s = "_".join(["%s" % v for k, v in x.items()])
-                return str.encode(s)
-
-            name_paper_table["name_paper_id"] = name_paper_table.apply(
-                lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
-            )
-            name_paper_table = pd.merge(
-                name_paper_table,
-                name_table[["name_id", "short_name_id", "block_id"]],
-                on="name_id",
-                how="left",
-            )
-            return name_paper_table
-
-        def construct_name_paper_address_table(name_paper_table, address_table):
-
-            # generate name_paper_address_table
+        def json2table(json_records):
             #
-            # author-paper affiliation table
-            name_paper_addr_table = name_paper_table.copy()[
-                ["paper_id", "_addr_no", "name_paper_id"]
-            ].dropna()
-            name_paper_addr_list = []
-            for i, row in name_paper_addr_table.iterrows():
-                name_paper_addr_list += [
-                    (row["name_paper_id"], row["paper_id"], int(_addr_no))
-                    for _addr_no in row["_addr_no"].split(" ")
-                ]
-            name_paper_addr_table = pd.DataFrame(
-                name_paper_addr_list, columns=["name_paper_id", "paper_id", "_addr_no"]
+            # Make name_table and block_table
+            #
+            def construct_block_table(author_table):
+                block_table = (
+                    author_table[["normalized_name"]]
+                    .drop_duplicates()
+                    .reset_index()
+                    .drop(columns=["index"])
+                )
+                block_table["block_id"] = block_table.apply(
+                    lambda x: hashlib.sha256(str.encode(x["normalized_name"])).hexdigest(),
+                    axis=1,
+                )
+                return block_table
+    
+            def construct_name_table(author_block, table_block):
+                name_table = pd.merge(
+                    author_table, block_table, on="normalized_name", how="left"
+                )
+                name_table = slice_columns(
+                    name_table,
+                    [
+                        "name",
+                        "initials",
+                        "first_name",
+                        "last_name",
+                        "normalized_name",
+                        "block_id",
+                    ],
+                ).drop_duplicates()
+    
+                # Normalize
+                name_table["first_name"] = name_table["first_name"].str.replace(
+                    "[^a-zA-Z ]", ""
+                )
+                name_table["last_name"] = name_table["last_name"].str.replace(
+                    "[^a-zA-Z ]", ""
+                )
+    
+                def concat(x):
+                    s = "_".join(["%s" % v for k, v in x.items()])
+                    return str.encode(s)
+    
+                name_table["name_id"] = name_table.apply(
+                    lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
+                )
+    
+                # add short name
+                name_table["short_name"] = (
+                    name_table["last_name"].apply(
+                        lambda x: x.lower() if isinstance(x, str) else ""
+                    )
+                    + "_"
+                    + name_table["first_name"].apply(lambda x: get_first_char(x).lower())
+                )
+                short_name_list = name_table["short_name"].drop_duplicates().values
+                name_table = pd.merge(
+                    name_table,
+                    pd.DataFrame(
+                        {
+                            "short_name": short_name_list,
+                            "short_name_id": [
+                                hashlib.sha256(str.encode(x)).hexdigest()
+                                for x in short_name_list
+                            ],
+                        }
+                    ),
+                    on="short_name",
+                    how="left",
+                )
+                return name_table
+    
+            def construct_name_paper_table(author_table, name_table):
+    
+                name_paper_table = author_table.copy().rename(
+                    columns={
+                        "wos_standard": "name",
+                        "UID": "paper_id",
+                        "email_addr": "email_address",
+                    }
+                )
+                
+                name_paper_table = pd.merge(
+                    name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
+                ).drop(columns="name")
+    
+                if "_addr_no" is not None:
+                    name_paper_table["_addr_no"] = None
+                name_paper_table = slice_columns(
+                    name_paper_table,
+                    ["name_id", "paper_id", "email_address", "_addr_no", "_seq_no"],
+                )
+    
+                def concat(x):
+                    s = "_".join(["%s" % v for k, v in x.items()])
+                    return str.encode(s)
+    
+                name_paper_table["name_paper_id"] = name_paper_table.apply(
+                    lambda x: hashlib.sha256(concat(x)).hexdigest(), axis=1
+                )
+                name_paper_table = pd.merge(
+                    name_paper_table,
+                    name_table[["name_id", "short_name_id", "block_id"]],
+                    on="name_id",
+                    how="left",
+                )
+                return name_paper_table
+    
+            def construct_name_paper_address_table(name_paper_table, address_table):
+    
+                # generate name_paper_address_table
+                #
+                # author-paper affiliation table
+                name_paper_addr_table = name_paper_table.copy()[
+                    ["paper_id", "_addr_no", "name_paper_id"]
+                ].dropna()
+                name_paper_addr_list = []
+                for i, row in name_paper_addr_table.iterrows():
+                    name_paper_addr_list += [
+                        (row["name_paper_id"], row["paper_id"], int(_addr_no))
+                        for _addr_no in row["_addr_no"].split(" ")
+                    ]
+                name_paper_addr_table = pd.DataFrame(
+                    name_paper_addr_list, columns=["name_paper_id", "paper_id", "_addr_no"]
+                )
+                name_paper_addr_table = pd.merge(
+                    name_paper_addr_table[["name_paper_id", "paper_id", "_addr_no"]],
+                    address_table.rename(columns = {"UID": "paper_id"}),
+                    on=["paper_id", "_addr_no"],
+                    how="left",
+                )
+                return name_paper_addr_table
+            
+             
+            #
+            # Parse
+            #
+            address_table = parse_address_name(json_records)
+            author_table = parse_author_name(json_records)
+            paper_info = parse_paper_info(json_records)
+            grant_table = parse_grant_name(json_records)
+    
+            block_table = construct_block_table(author_table)
+            name_table = construct_name_table(author_table, block_table)
+            name_paper_table = construct_name_paper_table(author_table, name_table)
+            name_paper_address_table = construct_name_paper_address_table(
+                name_paper_table, address_table
             )
-            name_paper_addr_table = pd.merge(
-                name_paper_addr_table[["name_paper_id", "paper_id", "_addr_no"]],
-                address_table.rename(columns = {"UID": "paper_id"}),
-                on=["paper_id", "_addr_no"],
-                how="left",
-            )
-            return name_paper_addr_table
-
-        block_table = construct_block_table(author_table)
-        name_table = construct_name_table(author_table, block_table)
-        name_paper_table = construct_name_paper_table(author_table, name_table)
-        name_paper_address_table = construct_name_paper_address_table(
-            name_paper_table, address_table
-        )
-
-        # generate paper_address_table
-        paper_address_table = address_table[pd.isna(address_table["_addr_no"])]
-
-        # (paper_table)
-        paper_table = paper_info.copy().rename(columns={"source": "journal", "UID":"paper_id"})
-
-        #
-        # Save the generated tables
-        #
-        if writing_mode == "w":
-            shutil.rmtree(output_dir)
-            os.mkdir(output_dir)
+    
+            # generate paper_address_table
+            paper_address_table = address_table[pd.isna(address_table["_addr_no"])]
+    
+            # (paper_table)
+            paper_table = paper_info.copy().rename(columns={"source": "journal", "UID":"paper_id"})
+    
+            return block_table, name_paper_table, name_table, paper_table, name_paper_address_table, paper_address_table, grant_table
 
         def export_block_to_sql(
             block,
@@ -281,6 +273,44 @@ class DataBlockingAlgorithm:
             )
             sub_conn.close()
 
+        num_files = len(JSON_RECORDS)
+        num_chunks = np.ceil(num_files / self.n_jobs)
+        block_table = [] 
+        name_paper_table = []
+        name_table = []
+        paper_table = []
+        name_paper_address_table = []
+        paper_address_table = []
+        grant_table = []
+        records = Parallel(n_jobs=self.n_jobs)(
+            delayed(json2table)([JSON_RECORDS[i] for i in chunks]) for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks))
+        )
+
+        for record in records:
+            block_table+=[record[0]]
+            name_paper_table+=[record[1]]
+            name_table+=[record[2]]
+            paper_table+=[record[3]]
+            name_paper_address_table+=[record[4]]
+            paper_address_table+=[record[5]]
+            grant_table+=[record[6]]
+        
+        block_table = pd.concat(block_table, ignore_index = True) 
+        name_paper_table = pd.concat(name_paper_table, ignore_index = True)
+        name_table = pd.concat(name_table, ignore_index = True)
+        paper_table = pd.concat(paper_table, ignore_index = True)
+        name_paper_address_table = pd.concat(name_paper_address_table, ignore_index = True)
+        paper_address_table = pd.concat(paper_address_table, ignore_index = True)
+        grant_table = pd.concat(grant_table, ignore_index = True)
+         
+        #
+        # Save the generated tables
+        #
+        if writing_mode == "w":
+            shutil.rmtree(output_dir)
+            os.mkdir(output_dir)
+
+
         Parallel(n_jobs=self.n_jobs)(
             delayed(export_block_to_sql)(
                 block,
@@ -296,14 +326,31 @@ class DataBlockingAlgorithm:
             )
             for _, block in block_table.iterrows()
         )
-
-
 #
 # Parse the retrieved json and store them as pandas table
 #
 # Decorator for Database class
+#def safe_parse(parse_func):
+#    def wrapper(results, n_jobs=1, *args, **kwargs):
+#        df_list = []
+#
+#        def func(result):
+#            UID = result["UID"]
+#            df = parse_func(result, *args, **kwargs)
+#            if df is None:
+#                return None
+#            df["paper_id"] = UID
+#            return df
+#
+#        df_list = Parallel(n_jobs=n_jobs)(delayed(func)(result) for result in results)
+#        df_list = [df for df in df_list if df is not None]
+#        df = pd.concat(df_list, ignore_index=True)
+#        return df
+#
+#    return wrapper
+
 def safe_parse(parse_func):
-    def wrapper(results, n_jobs=1, *args, **kwargs):
+    def wrapper(results, *args, **kwargs):
         df_list = []
 
         def func(result):
@@ -313,8 +360,7 @@ def safe_parse(parse_func):
                 return None
             df["paper_id"] = UID
             return df
-
-        df_list = Parallel(n_jobs=n_jobs)(delayed(func)(result) for result in results)
+        df_list = [func(result) for result in results]
         df_list = [df for df in df_list if df is not None]
         df = pd.concat(df_list, ignore_index=True)
         return df
@@ -372,8 +418,6 @@ def parse_address_name(result):
         df["suborganizations"] = None
     if "organizations" not in df.columns:
         df["organizations"] = None
-    if "department" not in df.columns:
-        df["department"] = None
     if "city" not in df.columns:
         df["city"] = None
     if "country" not in df.columns:
