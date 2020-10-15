@@ -15,15 +15,12 @@ if __name__ == "__main__":
     WORKING_DIR = sys.argv[4]
     OUTPUT = sys.argv[5]
 
-    json_files = glob.glob(INPUT_JSON_DIR+"/*.json")
+    json_files = glob.glob(INPUT_JSON_DIR + "/*.json")
 
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
     lda = LeidenDisambiguationAlgorithm(
-        WORKING_DIR,
-        CITATION_DB,
-        general_name_list,
-        n_jobs=50,
+        WORKING_DIR, CITATION_DB, general_name_list, n_jobs=50,
     )
 
     lda.init_working_dir()
