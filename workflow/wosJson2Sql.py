@@ -39,7 +39,7 @@ if __name__ == "__main__":
         df_list = Parallel(n_jobs=n_jobs)(
             delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
         )
-        df = pd.concat(df_list, ignore_index=True, chunksize=500)
-        df.to_sql("json_table", conn, if_exists="append")
+        df = pd.concat(df_list, ignore_index=True)
+        df.to_sql("json_table", conn, if_exists="append", chunksize=500)
 
         conn.close()

@@ -23,7 +23,7 @@ def find_papers_by_UID(uri, uids, max_request_records=1000):
         sidx = max_request_records * i
         fidx = sidx + max_request_records
         results = find_papers_by_UID(uri, uids[sidx:fidx])
-        all_results += results["hits"]["hits"]
+        all_results += results["hits"]["hits"]["_source"]["doc"]
     return all_results
 
 
