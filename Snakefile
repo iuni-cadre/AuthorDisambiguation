@@ -1,6 +1,7 @@
 from os.path import join as j
 import numpy as np
 import glob
+import glob
 
 
 configfile: "workflow/config.yaml"
@@ -85,10 +86,11 @@ rule random_sampling_test_data:
         )
 
 
-rule disambiguation:
+rule full_disambiguation:
     input:
-        CONFIG_FILE,
-        WOS_UID_FILE_SAMPLED,
+        #CONFIG_FILE,
+        #WOS_UID_FILE_SAMPLED,
+        WOS_JSON_FILE_DIR,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
     output:
@@ -96,7 +98,8 @@ rule disambiguation:
         directory(DISAMBIGUATION_WORKING_DIR),
     run:
         shell(
-            "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            #"python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
