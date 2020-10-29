@@ -113,8 +113,9 @@ class DataBlockingAlgorithm:
                     name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
                 ).drop(columns="name")
     
-                if "_addr_no" is not None:
+                if "_addr_no"  not in name_paper_table:
                     name_paper_table["_addr_no"] = None
+
                 name_paper_table = slice_columns(
                     name_paper_table,
                     ["name_id", "paper_id", "email_address", "_addr_no", "_seq_no"],
@@ -133,6 +134,7 @@ class DataBlockingAlgorithm:
                     on="name_id",
                     how="left",
                 )
+                
                 return name_paper_table
     
             def construct_name_paper_address_table(name_paper_table, address_table):
