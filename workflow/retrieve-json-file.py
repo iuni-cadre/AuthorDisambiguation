@@ -7,7 +7,6 @@ import sys
 import os
 from pathlib import Path
 import json
-
 sys.path.append(os.path.abspath(os.path.join("libs/WOS")))
 import WOS
 
@@ -39,7 +38,7 @@ if __name__ == "__main__":
     #
     reader = WOS.DatabaseReader(WOSDataPath)
     paper_list = []
-    for ID in tqdm(WOS_IDS):
+    for ID in WOS_IDS:
         paper_list+= [reader.articleAt(UID2Positions[ID])]
     
     #

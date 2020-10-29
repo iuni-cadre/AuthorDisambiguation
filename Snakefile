@@ -9,6 +9,7 @@ configfile: "workflow/config.yaml"
 
 CONFIG_FILE = "workflow/config.yaml"
 SHARED_DIR = config["shared_dir"]
+DATA_DIR = "data" 
 
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
@@ -43,6 +44,7 @@ DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
 
 # Results
 DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
+SAMPLED_DISAMBIGUATED_AUTHOR_LIST = "data/sampled-disambiguated-authors.csv"
 
 # Validations
 GROUND_TRUTH_AUTHOR_LIST = WOS_UID_FILE
@@ -83,6 +85,23 @@ rule random_sampling_test_data:
     run:
         shell(
             'cut -d"," -f 1 {input} |sed -s 1d |sort |uniq | shuf -n {SAMPLE_NUM} |sed -e "1iWoSid">{output} '
+        )
+
+
+rule sample_disambiguation:
+    input:
+        #CONFIG_FILE,
+        #WOS_UID_FILE_SAMPLED,
+        DATA_DIR,
+        WOS_CITATION_DB,
+        GENERAL_NAME_LIST_FILE,
+    output:
+        SAMPLED_DISAMBIGUATED_AUTHOR_LIST,
+        directory(DISAMBIGUATION_WORKING_DIR),
+    run:
+        shell(
+            "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            #"python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
