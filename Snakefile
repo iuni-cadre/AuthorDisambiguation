@@ -9,7 +9,7 @@ configfile: "workflow/config.yaml"
 
 CONFIG_FILE = "workflow/config.yaml"
 SHARED_DIR = config["shared_dir"]
-DATA_DIR = "data" 
+DATA_DIR = "data"
 
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
@@ -36,7 +36,7 @@ SAMPLE_NUM = 10000
 WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
 
 # Input for the full disambiguation
-#WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+# WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
 WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
 
 # Working directory for the Leiden disambiguation algorithm
@@ -90,9 +90,8 @@ rule random_sampling_test_data:
 
 rule sample_disambiguation:
     input:
-        #CONFIG_FILE,
-        #WOS_UID_FILE_SAMPLED,
-        DATA_DIR,
+        DATA_DIR, #CONFIG_FILE,
+         #WOS_UID_FILE_SAMPLED,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
     output:
@@ -101,15 +100,14 @@ rule sample_disambiguation:
     run:
         shell(
             "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
-            #"python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
 rule full_disambiguation:
     input:
-        #CONFIG_FILE,
-        #WOS_UID_FILE_SAMPLED,
-        WOS_JSON_FILE_DIR,
+        WOS_JSON_FILE_DIR, #CONFIG_FILE,
+         #WOS_UID_FILE_SAMPLED,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
     output:
@@ -118,7 +116,7 @@ rule full_disambiguation:
     run:
         shell(
             "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
-            #"python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
