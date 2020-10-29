@@ -331,9 +331,10 @@ def safe_parse(parse_func, n_jobs=20):
 
         df_list = Parallel(n_jobs=n_jobs)(delayed(func)(result) for result in results)
         df_list = [df for df in df_list if df is not None]
-        df = pd.concat(df_list, ignore_index=True)
-        return df
-
+        if len(df_list) == 0:
+            return None
+        else:
+            return pd.concat(df_list, ignore_index=True)
     return wrapper
 
 

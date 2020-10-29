@@ -33,6 +33,7 @@ if __name__ == "__main__":
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
     lda = LeidenDisambiguationAlgorithm(
+<<<<<<< Updated upstream
         WORKING_DIR,
         ES_USERNAME,
         ES_PASSWORD,
@@ -40,6 +41,9 @@ if __name__ == "__main__":
         CITATION_DB,
         general_name_list,
         n_jobs=50,
+=======
+        WORKING_DIR, CITATION_DB, general_name_list, n_jobs=30,
+>>>>>>> Stashed changes
     )
 
     lda.init_working_dir()

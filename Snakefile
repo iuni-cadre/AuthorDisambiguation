@@ -13,6 +13,14 @@ SHARED_DIR = config["shared_dir"]
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
 WOS_CITATION_DB = j("data/", "wos-citation.db")
 
+# Files to construct the database for json files
+WOS_JSON_DIR = glob.glob("/gpfs/sciencegenome/WoSjson2019")
+WOS_SQL_TABLE = j("data", "wos-json.db")
+
+# Json file for WOS
+WOS_JSON_DB = j("libs", "WOSData.bgz")
+WOS_JSON_POS = j("libs", "UID2Positions.bgz")
+
 # Author Name count file
 NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
 GENERAL_NAME_LIST_FILE = j(SHARED_DIR, "general-name-list.csv")
@@ -22,6 +30,12 @@ WOS_UID_FILE = j(SHARED_DIR, "disambiguationBenchmarkLabels.csv")
 WOS_ID_COLUMN_NAME = "WoSid"
 WOS_UID_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.csv")
 SAMPLE_NUM = 10000
+
+WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
+
+# Input for the full disambiguation
+#WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
 
 # Working directory for the Leiden disambiguation algorithm
 DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
@@ -103,3 +117,23 @@ rule calc_f1score:
         VALIDATION_RESULT,
     run:
         shell("python workflow/calculate_pairwise_F1.py {input} {output}")
+
+
+rule to_json2sql:
+    input:
+        WOS_JSON_DIR,
+    output:
+        WOS_SQL_TABLE,
+    run:
+        shell("python workflow/wosJson2Sql.py {input} {output}")
+
+
+rule make_json_for_sampled_papers:
+    input:
+        WOS_JSON_DB,
+        WOS_JSON_POS,
+        WOS_UID_FILE_SAMPLED,
+    output:
+        WOS_JSON_FILE_SAMPLED,
+    run:
+        shell("python workflow/retrieve-json-file.py {input} {output}")
