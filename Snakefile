@@ -40,7 +40,7 @@ WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
 WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
 
 # Working directory for the Leiden disambiguation algorithm
-DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
+DISAMBIGUATION_WORKING_DIR = "data/disk/disambiguation-working-dir"
 
 # Results
 DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
@@ -99,7 +99,7 @@ rule sample_disambiguation:
         directory(DISAMBIGUATION_WORKING_DIR),
     run:
         shell(
-            "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            "python workflow/disambiguation.py {DATA_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
             # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 

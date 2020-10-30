@@ -21,9 +21,6 @@ if __name__ == "__main__":
 
     lda = LeidenDisambiguationAlgorithm(
         WORKING_DIR,
-        ES_USERNAME,
-        ES_PASSWORD,
-        ES_ENDPOINT,
         CITATION_DB,
         general_name_list,
         n_jobs=50,
