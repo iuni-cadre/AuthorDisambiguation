@@ -36,7 +36,7 @@ SAMPLE_NUM = 10000
 WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
 
 # Input for the full disambiguation
-# WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+SAMPLED_WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
 WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
 
 # Working directory for the Leiden disambiguation algorithm
@@ -90,7 +90,8 @@ rule random_sampling_test_data:
 
 rule sample_disambiguation:
     input:
-        DATA_DIR, #CONFIG_FILE,
+        #DATA_DIR, #CONFIG_FILE,
+        SAMPLED_WOS_JSON_FILE_DIR,
          #WOS_UID_FILE_SAMPLED,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
@@ -100,6 +101,7 @@ rule sample_disambiguation:
     run:
         shell(
             "python workflow/disambiguation.py {DATA_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            #"python workflow/disambiguation.py {SAMPLED_WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
             # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 

@@ -113,7 +113,7 @@ class DataBlockingAlgorithm:
                     name_paper_table, name_table[["name_id", "name"]], on="name", how="left"
                 ).drop(columns="name")
     
-                if "_addr_no"  not in name_paper_table:
+                if "_addr_no" not in name_paper_table:
                     name_paper_table["_addr_no"] = None
 
                 name_paper_table = slice_columns(
@@ -145,6 +145,7 @@ class DataBlockingAlgorithm:
                 name_paper_addr_table = name_paper_table.copy()[
                     ["paper_id", "_addr_no", "name_paper_id"]
                 ].dropna()
+                
                 name_paper_addr_list = []
                 for i, row in name_paper_addr_table.iterrows():
                     name_paper_addr_list += [
@@ -205,25 +206,31 @@ class DataBlockingAlgorithm:
             sub_name_paper_table = name_paper_table[
                 name_paper_table.block_id == block_id
             ].drop_duplicates()
+            
             sub_name_table = name_table[
                 name_table.block_id == block_id
             ].drop_duplicates()
+            
             sub_block_table = block_table[
                 block_table.block_id == block_id
             ].drop_duplicates()
+            
             sub_paper_table = pd.merge(
                 sub_name_paper_table[["paper_id"]], paper_table, on="paper_id"
             ).drop_duplicates()
+
             sub_name_paper_address_table = pd.merge(
-                name_paper_address_table[["name_paper_id"]],
+                sub_name_paper_table[["name_paper_id"]],
                 name_paper_address_table,
                 on=["name_paper_id"],
             ).drop_duplicates()
+            
             sub_paper_address_table = pd.merge(
-                paper_address_table[["paper_id"]], paper_address_table, on=["paper_id"]
+                sub_paper_table[["paper_id"]], paper_address_table, on=["paper_id"]
             ).drop_duplicates()
+
             sub_grant_table = pd.merge(
-                paper_address_table[["paper_id"]], grant_table, on=["paper_id"]
+                sub_paper_table[["paper_id"]].drop_duplicates(), grant_table, on=["paper_id"]
             ).drop_duplicates()
 
             # Load the citation table
