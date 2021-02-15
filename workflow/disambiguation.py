@@ -20,7 +20,10 @@ if __name__ == "__main__":
     general_name_list = pd.read_csv(GENERAL_NAME_LIST_FILE)["first_name"].values
 
     lda = LeidenDisambiguationAlgorithm(
-        WORKING_DIR, CITATION_DB, general_name_list, n_jobs=38,
+        WORKING_DIR,
+        CITATION_DB,
+        general_name_list,
+        n_jobs=50,
     )
 
     lda.init_working_dir()

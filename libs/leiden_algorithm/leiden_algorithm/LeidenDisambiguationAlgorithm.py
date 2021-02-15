@@ -110,10 +110,11 @@ class LeidenDisambiguationAlgorithm:
     def data_blocking(self, JSON_FILES):
         def to_dataframe(filename):
             return [json.loads(line) for line in open(filename, "r")]
+        
         num_files = len(JSON_FILES)
         num_chunks = np.ceil(num_files / self.n_jobs)
         for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks)):
-    
+             
             records = Parallel(n_jobs=self.n_jobs)(
                 delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
             )

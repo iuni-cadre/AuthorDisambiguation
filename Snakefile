@@ -9,6 +9,7 @@ configfile: "workflow/config.yaml"
 
 CONFIG_FILE = "workflow/config.yaml"
 SHARED_DIR = config["shared_dir"]
+DATA_DIR = "data"
 
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
@@ -17,6 +18,10 @@ WOS_CITATION_DB = j("data/", "wos-citation.db")
 # Files to construct the database for json files
 WOS_JSON_DIR = glob.glob("/gpfs/sciencegenome/WoSjson2019")
 WOS_SQL_TABLE = j("data", "wos-json.db")
+
+# Json file for WOS
+WOS_JSON_DB = j("libs", "WOSData.bgz")
+WOS_JSON_POS = j("libs", "UID2Positions.bgz")
 
 # Author Name count file
 NAME_COUNT_FILE = j(SHARED_DIR, "nameCount.csv")
@@ -28,15 +33,21 @@ WOS_ID_COLUMN_NAME = "WoSid"
 WOS_UID_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.csv")
 SAMPLE_NUM = 10000
 
+WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
+
 # Input for the full disambiguation
-#WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+
 WOS_JSON_FILE_DIR = "/N/project/rcsc/raw_data/WoSjson2019/json/" #/gpfs/sciencegenome/WoSjson2019"
 
+SAMPLED_WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
+WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
+
 # Working directory for the Leiden disambiguation algorithm
-DISAMBIGUATION_WORKING_DIR = "data/disambiguation-working-dir"
+DISAMBIGUATION_WORKING_DIR = "data/disk/disambiguation-working-dir"
 
 # Results
 DISAMBIGUATED_AUTHOR_LIST = "data/disambiguated-authors.csv"
+SAMPLED_DISAMBIGUATED_AUTHOR_LIST = "data/sampled-disambiguated-authors.csv"
 
 # Validations
 GROUND_TRUTH_AUTHOR_LIST = WOS_UID_FILE
@@ -80,11 +91,28 @@ rule random_sampling_test_data:
         )
 
 
+rule sample_disambiguation:
+    input:
+        #DATA_DIR, #CONFIG_FILE,
+        SAMPLED_WOS_JSON_FILE_DIR,
+         #WOS_UID_FILE_SAMPLED,
+        WOS_CITATION_DB,
+        GENERAL_NAME_LIST_FILE,
+    output:
+        SAMPLED_DISAMBIGUATED_AUTHOR_LIST,
+        directory(DISAMBIGUATION_WORKING_DIR),
+    run:
+        shell(
+            "python workflow/disambiguation.py {DATA_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            #"python workflow/disambiguation.py {SAMPLED_WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+            # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
+        )
+
+
 rule full_disambiguation:
     input:
-        #CONFIG_FILE,
-        #WOS_UID_FILE_SAMPLED,
-        WOS_JSON_FILE_DIR,
+        WOS_JSON_FILE_DIR, #CONFIG_FILE,
+         #WOS_UID_FILE_SAMPLED,
         WOS_CITATION_DB,
         GENERAL_NAME_LIST_FILE,
     output:
@@ -122,3 +150,14 @@ rule to_json2sql:
         WOS_SQL_TABLE,
     run:
         shell("python workflow/wosJson2Sql.py {input} {output}")
+
+
+rule make_json_for_sampled_papers:
+    input:
+        WOS_JSON_DB,
+        WOS_JSON_POS,
+        WOS_UID_FILE_SAMPLED,
+    output:
+        WOS_JSON_FILE_SAMPLED,
+    run:
+        shell("python workflow/retrieve-json-file.py {input} {output}")
