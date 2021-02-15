@@ -36,6 +36,9 @@ SAMPLE_NUM = 10000
 WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
 
 # Input for the full disambiguation
+
+WOS_JSON_FILE_DIR = "/N/project/rcsc/raw_data/WoSjson2019/json/" #/gpfs/sciencegenome/WoSjson2019"
+
 SAMPLED_WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
 WOS_JSON_FILE_DIR = "/gpfs/sciencegenome/WoSjson2019"
 
@@ -118,7 +121,6 @@ rule full_disambiguation:
     run:
         shell(
             "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
-            # "python workflow/disambiguation.py {CONFIG_FILE} {WOS_UID_FILE_SAMPLED} {WOS_ID_COLUMN_NAME} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
 
