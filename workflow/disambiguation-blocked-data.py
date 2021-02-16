@@ -5,12 +5,13 @@ import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join("libs/leiden_algorithm")))
-from leiden_algorithm import LeidenDisambiguationAlgorithm
+from leiden_algorithm import LeidenDisambiguationAlgorithmCSV
 
 
 if __name__ == "__main__":
 
     GENERAL_NAME_LIST_FILE = snakemake.input["general_name_list"]
+    dirpath = snakemake.input["data_path"] 
     WORKING_DIR = snakemake.output["working_dir"]
     OUTPUT = snakemake.output["disambiguated_author_list"]
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
 
     lda.init_working_dir()
     #lda.data_blocking(json_files)
-    lda.clustering(block_list = ["initals2=ada"])
+    lda.clustering(block_list = ["initals2=ada"], root = dirpath)
     lda.post_process()
 
     disambiguted_author_list = lda.get_disambiguated_authors()

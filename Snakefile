@@ -126,8 +126,9 @@ rule full_disambiguation:
 rule disambiguation_blocked_data:
     input:
         general_name_list = GENERAL_NAME_LIST_FILE,
+        data_path = "local-data" 
     output:
-        diambiguated_author_list = DISAMBIGUATED_AUTHOR_LIST,
+        disambiguated_author_list = DISAMBIGUATED_AUTHOR_LIST,
         working_dir = "data/.tmp-working-dir"
     script:
         "workflow/disambiguation-blocked-data.py"

@@ -205,17 +205,7 @@ class LeidenDisambiguationAlgorithm:
 
 
 class LeidenDisambiguationAlgorithmCSV:
-    def __init__(
-        self,
-        working_dir,
-        #ES_USERNAME,
-        #ES_PASSWORD,
-        #ES_ENDPOINT,
-        CITATION_DB,
-        general_name_list,
-        threshold=10,
-        n_jobs=30,
-    ):
+    def __init__(self, **params):
         """
         Params
         ------
@@ -237,7 +227,7 @@ class LeidenDisambiguationAlgorithmCSV:
         n_jobs : int
             Number of jobs
         """
-        super(LeidenDisambiguationAlgorithmCSV, self).__init__(working_dir, CITATION_DB, general_name_list, threshold, n_jobs)
+        LeidenDisambiguationAlgorithm.__init__(**params)
         self.data_blocking_alg = DataBlockingAlgorithm(
             CITATION_DB, n_jobs=n_jobs
         )
