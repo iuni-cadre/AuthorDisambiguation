@@ -9,6 +9,7 @@ Install all packages
 
 ```bash
 conda env create -f environment.yml
+conda install -y -c bioconda -c conda-forge snakemake # TODO: put this into environement.yml 
 ```
 
 Create a kernel for the virtual environment that you can use in Jupyter lab/notebook.
