@@ -3,7 +3,8 @@ from scipy import sparse
 import pandas as pd
 from .utils import *
 import sqlite3
-
+import pathlib
+import glob
 
 class ScoringRule:
     def __init__(self, general_name_list):
@@ -424,3 +425,126 @@ class ScoringRule:
             ),
             self.conn,
         )
+
+class ScoringRuleCSV:
+    """
+    This class is for a new directory structure created by Xiaoran
+    """
+    def __init__(self, general_name_list, dirpath):
+        super(ScoringRuleCSV, self).__init__(general_name_list)
+        self.root = pathlib.Path(root)
+
+
+    def load_tables(self):
+
+        self.author_paper_table = self.get_author_paper_list_in_block()
+        paper_ids = self.author_paper_table["paper_id"].drop_duplicates().values
+
+        # Assign index values
+        self.author_paper_table["index"] = np.arange(self.author_paper_table.shape[0])
+
+        # Load tables
+        self.paper_address_table = self.get_paper_address(paper_ids)
+        self.name_paper_address_table = self.get_name_paper_address(paper_ids)
+        self.paper_table = self.get_paper_attributes(paper_ids)
+        self.grant_table = self.get_grants(paper_ids)
+        self.coauthor_table = self.get_authors(paper_ids)
+        self.citation_table = self.get_citations(paper_ids)
+
+    def eval(self, block_name):
+
+        self.block_name = block_name
+        self.load_tables(block_name)
+
+        W = None
+        for i, rule in enumerate(self.rule_list):
+            Wnew = self.rule_list[i]()
+            if Wnew is None:
+                continue
+            elif W is None:
+                W = Wnew
+            else:
+                W += Wnew
+        return (
+            W,
+            self.author_paper_table[
+                [
+                    "name_id",
+                    "paper_id",
+                    "name_paper_id",
+                    "email_address",
+                    "name",
+                    "_seq_no",
+                ]
+            ],
+        )
+
+    #
+    # Helper function
+    #
+    def read_table(self, table_name):
+        df = pd.DataFrame([pd.read_csv(f) for f in glob.glob(self.root / pathlib.Path(table_name) / pathlib.Path(block_name) / "*.csv")])
+        return df
+
+    def impute_nan_to_sql_table(func):
+        """replace 'nan' string with python nan """
+        def wrapper(self, *args, **kwargs):
+            tb = func(self, *args, **kwargs).replace("nan", np.nan)
+            return tb
+
+        return wrapper
+
+    def get_author_paper_list_in_block(self, block_name):
+        # comments : can I perform these operations with only the sql?
+        # But doing this may require more memory because the join clause will be pefermed after where clause
+        name_table = self.read_table("name_table")
+        name_id_table = self.read_table("name_paper_table").drop(
+            columns=["block_id", "short_name_id"]
+        )
+        return pd.merge(name_table, name_id_table, on="name_id", how="right")
+
+    def get_name_ids_in_block(self):
+        name_table = self.read_table("name_table")
+        return name_table["name_id"].values
+
+    @impute_nan_to_sql_table
+    def get_paper_attributes(self, paper_ids):
+        df = self.read_table("paper_table")
+        df = df[df["paper_id"].isin(paper_ids)]
+        return df
+
+    @impute_nan_to_sql_table
+    def get_grants(self, paper_ids):
+        df = self.read_table("grant_table")
+        df = df[df["paper_id"].isin(paper_ids)]
+        return df
+
+    @impute_nan_to_sql_table
+    def get_citations(self, paper_ids):
+        citations = self.read_csv("citation_table")
+        citations = citations[citations["source"].isin(paper_ids) | citations["target"].isin(paper_ids)]
+        return citations.dropna()
+
+    @impute_nan_to_sql_table
+    def get_authors(self, paper_ids):
+        # comments : can I perform these operations with only the sql?
+        # But doing this may require more memory because the join clause will be pefermed after where clause
+        df = self.read_csv("name_paper_table")[["name_id", "short_name_id", "paper_id"]]
+        df = df[df["paper_id"].isin(paper_ids)]
+        return df
+
+    @impute_nan_to_sql_table
+    def get_paper_address(self, paper_ids):
+        # comments : can I perform these operations with only the sql?
+        # But doing this may require more memory because the join clause will be pefermed after where clause
+        df = self.read_csv("paper_address_table")
+        df = df[df["paper_id"].isin(paper_ids)]
+        return df
+
+    @impute_nan_to_sql_table
+    def get_name_paper_address(self, paper_ids):
+        # comments : can I perform these operations with only the sql?
+        # But doing this may require more memory because the join clause will be pefermed after where clause
+        df = self.read_csv("name_paper_address_table")
+        df = df[df["paper_id"].isin(paper_ids)]
+        return df

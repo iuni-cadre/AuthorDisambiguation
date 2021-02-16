@@ -123,6 +123,15 @@ rule full_disambiguation:
             "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
+rule disambiguation_blocked_data:
+    input:
+        general_name_list = GENERAL_NAME_LIST_FILE,
+    output:
+        diambiguated_author_list = DISAMBIGUATED_AUTHOR_LIST,
+        working_dir = "data/.tmp-working-dir"
+    script:
+        "workflow/disambiguation-blocked-data.py"
+
 
 rule generate_validation_result:
     input:

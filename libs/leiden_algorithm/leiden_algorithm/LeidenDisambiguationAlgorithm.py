@@ -20,7 +20,7 @@ from .ScoringRule import ScoringRule
 
 class LeidenDisambiguationAlgorithm:
     """
-    Leiden Disambiguation Algorithm. 
+    Leiden Disambiguation Algorithm.
 
     Example
     -------
@@ -34,7 +34,7 @@ class LeidenDisambiguationAlgorithm:
     lda.data_blocking(json_files)
     lda.clustering()
     lda.post_process()
-    
+
     disambiguted_author_list = lda.get_disambiguated_authors()
     """
 
@@ -110,11 +110,11 @@ class LeidenDisambiguationAlgorithm:
     def data_blocking(self, JSON_FILES):
         def to_dataframe(filename):
             return [json.loads(line) for line in open(filename, "r")]
-        
+
         num_files = len(JSON_FILES)
         num_chunks = np.ceil(num_files / self.n_jobs)
         for chunks in tqdm(np.array_split(np.arange(num_files), num_chunks)):
-             
+
             records = Parallel(n_jobs=self.n_jobs)(
                 delayed(to_dataframe)(JSON_FILES[i]) for i in chunks
             )
@@ -202,3 +202,82 @@ class LeidenDisambiguationAlgorithm:
         if os.path.exists(self.disambiguated_list):
             return pd.read_csv(self.disambiguated_list)
         return None
+
+
+class LeidenDisambiguationAlgorithmCSV:
+    def __init__(
+        self,
+        working_dir,
+        #ES_USERNAME,
+        #ES_PASSWORD,
+        #ES_ENDPOINT,
+        CITATION_DB,
+        general_name_list,
+        threshold=10,
+        n_jobs=30,
+    ):
+        """
+        Params
+        ------
+        working_dir: str
+            Name of working directory that contains
+                - blocks : this contains sql databases for data blocks
+                - clustered : this contains the csv files for clustered sub-blocks
+                - disambiguated: this contains the final distambiguated result
+        ES_USERNAE: str
+            Username for the ElasticSearch server
+        ES_PASSWORD: str
+            Password for the ElasticSearch server
+        CITATION_DB: str
+            Path to the sql database for citations
+        general_name_list: str
+            List of general names
+        threshold: float
+            Threshold value for clustering
+        n_jobs : int
+            Number of jobs
+        """
+        super(LeidenDisambiguationAlgorithmCSV, self).__init__(working_dir, CITATION_DB, general_name_list, threshold, n_jobs)
+        self.data_blocking_alg = DataBlockingAlgorithm(
+            CITATION_DB, n_jobs=n_jobs
+        )
+        self.working_dir = working_dir
+        self.general_name_list = general_name_list
+        self.blocks_dir = "%s/blocks" % self.working_dir
+        self.clustered_dir = "%s/clustered_blocks" % self.working_dir
+        self.disambiguated_dir = "%s/disambiguated_blocks" % self.working_dir
+        self.disambiguated_list = (
+            self.disambiguated_dir + "/disambiguated-author-list.csv"
+        )
+        self.threshold = threshold
+        self.n_jobs = n_jobs
+
+    def clustering(self, root, block_list=[]):
+
+        if len(block_list) == 0:
+            block_list = glob.glob(Path(root) / Path("name_table") / Path("*"))
+            block_list = [Path(b).stem for b in block_list]
+
+        def _clustering(general_name_list, block_name, result_file_name):
+            def clustering_method(self, W):
+                W[W < self.threshold] = 0
+                return get_connected_component(W)
+
+            scoring_func = ScoringRuleCSV(general_name_list, root)
+            W, author_paper_table = scoring_func.eval(block_name)
+
+            cids = get_connected_component(W)
+
+            author_paper_table = author_paper_table.copy()
+            author_paper_table["cluster_id"] = ["%s_%d" % (block_name, c) for c in cids]
+            author_paper_table.to_csv(result_file_name, index=False)
+
+        Parallel(n_jobs=self.n_jobs)(
+            delayed(_clustering)(
+                block_name,
+                self.general_name_list,
+                block_name,
+                self.clustered_dir + "/" + block_name + ".csv",
+            )
+            for block_name in tqdm(block_list, desc="Clustering")
+        )
