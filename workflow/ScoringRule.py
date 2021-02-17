@@ -19,23 +19,31 @@ class ScoringRule:
     def __init__(
         self,
         general_name_list,
-        author_paper_table,
         paper_address_table,
         name_paper_address_table,
         paper_table,
         grant_table,
-        coauthor_table,
-        citation_table,
+        citing_table,
+        name_table, 
+        name_paper_table,
+        coauthor_table = None,
+        **params
     ):
         self.general_name_list = general_name_list
 
-        self.author_paper_table = author_paper_table
         self.paper_address_table = paper_address_table
         self.name_paper_address_table = name_paper_address_table
         self.paper_table = paper_table
         self.grant_table = grant_table
+        self.citing_table = citing_table
         self.coauthor_table = coauthor_table
-        self.citation_table = citation_table
+        
+        self.author_paper_table = pd.merge(name_table, name_paper_table.drop(columns=["block_id", "short_name_id"]), on="name_id", how="right")
+
+        print(name_table.shape, name_paper_table.shape, self.author_paper_table.shape, name_table, name_table[["name", "name_id"]].head(5), name_paper_table)
+
+        # Assign index values
+        self.author_paper_table["index"] = np.arange(self.author_paper_table.shape[0])
 
         self.rule_list = [
             self.rule_1,
@@ -183,6 +191,8 @@ class ScoringRule:
         #
         # Rule 5a, b, c
         #
+        if self.coauthor_table is None:
+            return None
         df = pd.concat(
             [
                 self.coauthor_table[["paper_id", "short_name_id"]],
@@ -283,7 +293,7 @@ class ScoringRule:
             self.author_paper_table[["paper_id", "index"]].rename(
                 columns={"paper_id": "target"}
             ),
-            self.citation_table,
+            self.citing_table,
             on="target",
             how="left",
         ).dropna()
@@ -304,7 +314,7 @@ class ScoringRule:
             self.author_paper_table[["paper_id", "index"]].rename(
                 columns={"paper_id": "source"}
             ),
-            self.citation_table,
+            self.citing_table,
             on="source",
             how="left",
         ).dropna()
