@@ -19,14 +19,14 @@ class ScoringRule:
     def __init__(
         self,
         general_name_list,
-        paper_address_table,
-        name_paper_address_table,
-        paper_table,
-        grant_table,
-        citing_table,
-        name_table, 
-        name_paper_table,
-        coauthor_table = None,
+        paper_address_table=None,
+        name_paper_address_table=None,
+        paper_table=None,
+        grant_table=None,
+        citing_table=None,
+        name_table=None,
+        name_paper_table=None,
+        coauthor_table=None,
         **params
     ):
         self.general_name_list = general_name_list
@@ -37,10 +37,22 @@ class ScoringRule:
         self.grant_table = grant_table
         self.citing_table = citing_table
         self.coauthor_table = coauthor_table
-        
-        self.author_paper_table = pd.merge(name_table, name_paper_table.drop(columns=["block_id", "short_name_id"]), on="name_id", how="right")
 
-        print(name_table.shape, name_paper_table.shape, self.author_paper_table.shape, name_table, name_table[["name", "name_id"]].head(5), name_paper_table)
+        self.author_paper_table = pd.merge(
+            name_table,
+            name_paper_table.drop(columns=["block_id", "short_name_id"]),
+            on="name_id",
+            how="right",
+        )
+
+        #        print(
+        #            name_table.shape,
+        #            name_paper_table.shape,
+        #            self.author_paper_table.shape,
+        #            #name_table,
+        #            #name_table[["name", "name_id"]].head(5),
+        #            #name_paper_table,
+        #        )
 
         # Assign index values
         self.author_paper_table["index"] = np.arange(self.author_paper_table.shape[0])
@@ -86,6 +98,8 @@ class ScoringRule:
     # Rules
     #
     def rule_1(self):
+        if self.author_paper_table is None:
+            return None
         return to_weighted_cooccurrence_matrix(
             self.author_paper_table,
             "index",
@@ -95,6 +109,9 @@ class ScoringRule:
         )
 
     def rule_2(self):
+        if self.author_paper_table is None:
+            return None
+
         def generate_initials_more_than_two(x):
             first_name = x["first_name"] if x["first_name"] is not None else ""
             last_name = x["last_name"] if x["last_name"] is not None else ""
@@ -126,6 +143,8 @@ class ScoringRule:
         ) - 10 * (1 - Wn)
 
     def rule_3(self):
+        if self.author_paper_table is None:
+            return None
         self.author_paper_table[
             "is_general_first_name"
         ] = self.author_paper_table.apply(
@@ -149,6 +168,8 @@ class ScoringRule:
         )
 
     def rule_4(self):
+        if (self.author_paper_table is None) or (self.name_paper_address_table is None):
+            return None
         address_table = pd.merge(
             self.author_paper_table.reset_index(),
             self.name_paper_address_table,
@@ -191,6 +212,8 @@ class ScoringRule:
         #
         # Rule 5a, b, c
         #
+        if self.author_paper_table is None:
+            return None
         if self.coauthor_table is None:
             return None
         df = pd.concat(
@@ -220,6 +243,8 @@ class ScoringRule:
         return coauthor_count_paper_by_paper.toarray()
 
     def rule_6(self):
+        if (self.author_paper_table is None) or (self.grant_table is None):
+            return None
         df = pd.merge(
             self.author_paper_table, self.grant_table, on="paper_id", how="left"
         )
@@ -231,6 +256,8 @@ class ScoringRule:
         )
 
     def rule_7(self):
+        if (self.author_paper_table is None) or (self.paper_address_table is None):
+            return None
 
         # Rules 7a, 7b
         address_table = pd.merge(
@@ -271,6 +298,8 @@ class ScoringRule:
             return None
 
     def rule_8(self):
+        if (self.author_paper_table is None) or (self.paper_table is None):
+            return None
         df = pd.merge(
             self.author_paper_table,
             self.paper_table[["paper_id", "journal"]],
@@ -284,6 +313,12 @@ class ScoringRule:
         return W
 
     def rule_9_10_11(self):
+        if (
+            (self.citing_table is None)
+            or (self.author_paper_table is None)
+            or (self.paper_table is None)
+        ):
+            return None
 
         Wlist = []
         #

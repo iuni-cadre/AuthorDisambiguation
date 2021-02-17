@@ -60,7 +60,8 @@ VALIDATION_RESULT = "data/result/validation-scores.txt"
 # Parameters
 #
 THRESHOLD = 10
-BLOCK_NAME_LIST = ["initials2=ada"]
+BLOCK_NAME_LIST = ["initials2=a.a"]
+#BLOCK_NAME_LIST = ["initials2=ada", "initials2=a.a"]
 CLUSTER_FILE= j(CLUSTER_DIR, "clusters_block={block_name}.csv")
 CLUSTER_FILE_ALL= expand(CLUSTER_FILE, block_name = BLOCK_NAME_LIST)
 
@@ -136,10 +137,10 @@ rule full_disambiguation:
 rule disambiguation_one_block:
     input:
         general_name_list = GENERAL_NAME_LIST_FILE,
-        data_path = "data/emberTest" 
+        data_path = "data/emberTest"
     params:
         block_name = lambda wildcards : wildcards.block_name,
-        threshold = THRESHOLD 
+        threshold = THRESHOLD
     output:
         output_file = CLUSTER_FILE,
     script:
@@ -153,7 +154,7 @@ rule _disambiguation_all_block:
 rule disambiguation_blocked_data:
     input:
         general_name_list = GENERAL_NAME_LIST_FILE,
-        data_path = "data/emberTest" 
+        data_path = "data/emberTest"
     output:
         disambiguated_author_list = DISAMBIGUATED_AUTHOR_LIST,
         working_dir = "data/.tmp-working-dir"
