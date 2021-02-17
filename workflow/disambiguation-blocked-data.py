@@ -19,14 +19,14 @@ if __name__ == "__main__":
 
     lda = LeidenDisambiguationAlgorithmCSV(
         WORKING_DIR,
-        None,#CITATION_DB,
+        None,
         general_name_list,
-        n_jobs=50,
+        n_jobs=1,
     )
 
     lda.init_working_dir()
     #lda.data_blocking(json_files)
-    lda.clustering(block_list = ["initals2=ada"], root = dirpath)
+    lda.clustering(block_list = ["initials2=ada"], root = dirpath)
     lda.post_process()
 
     disambiguted_author_list = lda.get_disambiguated_authors()

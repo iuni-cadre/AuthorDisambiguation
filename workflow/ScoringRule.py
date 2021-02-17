@@ -8,7 +8,11 @@ import pandas as pd
 from scipy import sparse
 
 # import modin.pandas as pd
-from utils import to_weighted_cooccurrence_matrix, to_nested_weighted_cooccurrence_matrix, to_cooccurrence_matrix 
+from utils import (
+    to_cooccurrence_matrix,
+    to_nested_weighted_cooccurrence_matrix,
+    to_weighted_cooccurrence_matrix,
+)
 
 
 class ScoringRule:
