@@ -15,7 +15,7 @@ from joblib import Parallel, delayed
 
 from .utils import *
 from .DataBlockingAlgorithm import DataBlockingAlgorithm
-from .ScoringRule import ScoringRule
+from .ScoringRule import ScoringRule, ScoringRuleCSV
 
 
 class LeidenDisambiguationAlgorithm:
@@ -204,8 +204,15 @@ class LeidenDisambiguationAlgorithm:
         return None
 
 
-class LeidenDisambiguationAlgorithmCSV:
-    def __init__(self, **params):
+class LeidenDisambiguationAlgorithmCSV(LeidenDisambiguationAlgorithm):
+    def __init__(
+        self,
+        working_dir,
+        CITATION_DB,
+        general_name_list,
+        threshold=10,
+        n_jobs=30,
+    ):
         """
         Params
         ------
@@ -227,10 +234,6 @@ class LeidenDisambiguationAlgorithmCSV:
         n_jobs : int
             Number of jobs
         """
-        LeidenDisambiguationAlgorithm.__init__(**params)
-        self.data_blocking_alg = DataBlockingAlgorithm(
-            CITATION_DB, n_jobs=n_jobs
-        )
         self.working_dir = working_dir
         self.general_name_list = general_name_list
         self.blocks_dir = "%s/blocks" % self.working_dir
@@ -264,7 +267,6 @@ class LeidenDisambiguationAlgorithmCSV:
 
         Parallel(n_jobs=self.n_jobs)(
             delayed(_clustering)(
-                block_name,
                 self.general_name_list,
                 block_name,
                 self.clustered_dir + "/" + block_name + ".csv",

@@ -10,6 +10,8 @@ configfile: "workflow/config.yaml"
 CONFIG_FILE = "workflow/config.yaml"
 SHARED_DIR = config["shared_dir"]
 DATA_DIR = "data"
+CLUSTER_DIR = "data/clustered-blocks"
+BLOCK_DIR = "data/blocks"
 
 # Files to construct the citation database
 WOS_CITATION_FILE = "/gpfs/sciencegenome/WoSjson2019/citeEdges.csv/citeEdges.csv.gz"
@@ -36,7 +38,6 @@ SAMPLE_NUM = 10000
 WOS_JSON_FILE_SAMPLED = j("data", "sampled-disambiguationBenchmarkLabels.json")
 
 # Input for the full disambiguation
-
 WOS_JSON_FILE_DIR = "/N/project/rcsc/raw_data/WoSjson2019/json/" #/gpfs/sciencegenome/WoSjson2019"
 
 SAMPLED_WOS_JSON_FILE_DIR = "data/sampled-json" # for testing
@@ -53,6 +54,15 @@ SAMPLED_DISAMBIGUATED_AUTHOR_LIST = "data/sampled-disambiguated-authors.csv"
 GROUND_TRUTH_AUTHOR_LIST = WOS_UID_FILE
 DISAMBIGUATION_FOR_VALIDATION_TEST = "data/validation-disambiguated-authors.csv"
 VALIDATION_RESULT = "data/result/validation-scores.txt"
+
+
+#
+# Parameters
+#
+THRESHOLD = 10
+BLOCK_NAME_LIST = ["initials2=ada"]
+CLUSTER_FILE= j(CLUSTER_DIR, "clusters_block={block_name}.csv")
+CLUSTER_FILE_ALL= expand(CLUSTER_FILE, block_name = BLOCK_NAME_LIST)
 
 
 rule all:
@@ -123,10 +133,27 @@ rule full_disambiguation:
             "python workflow/disambiguation.py {WOS_JSON_FILE_DIR} {WOS_CITATION_DB} {GENERAL_NAME_LIST_FILE} {DISAMBIGUATION_WORKING_DIR} {output}"
         )
 
+rule disambiguation_one_block:
+    input:
+        general_name_list = GENERAL_NAME_LIST_FILE,
+        data_path = "data/emberTest" 
+    params:
+        block_name = lambda wildcards : wildcards.block_name,
+        threshold = THRESHOLD 
+    output:
+        output_file = CLUSTER_FILE,
+    script:
+        "workflow/disambiguation-one-block.py"
+
+rule _disambiguation_all_block:
+    input:
+        CLUSTER_FILE_ALL
+
+
 rule disambiguation_blocked_data:
     input:
         general_name_list = GENERAL_NAME_LIST_FILE,
-        data_path = "local-data" 
+        data_path = "data/emberTest" 
     output:
         disambiguated_author_list = DISAMBIGUATED_AUTHOR_LIST,
         working_dir = "data/.tmp-working-dir"

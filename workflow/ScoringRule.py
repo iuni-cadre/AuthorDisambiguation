@@ -1,7 +1,9 @@
 import numpy as np
 from scipy import sparse
 import pandas as pd
-from .utils import *
+import dask.dataframe as dd
+#import modin.pandas as pd
+from utils import *
 import sqlite3
 import pathlib
 import glob
@@ -438,6 +440,7 @@ class ScoringRuleCSV(ScoringRule):
     def load_tables(self):
 
         self.author_paper_table = self.get_author_paper_list_in_block()
+        #print(self.author_paper_table)
         paper_ids = self.author_paper_table["paper_id"].drop_duplicates().values
 
         # Assign index values
@@ -483,7 +486,8 @@ class ScoringRuleCSV(ScoringRule):
     # Helper function
     #
     def read_table(self, table_name):
-        df = pd.concat([pd.read_csv(f) for f in glob.glob(str( self.root / table_name / self.block_name / "*.csv"))], ignore_index = True)
+        #df = pd.concat([pd.read_csv(f) for f in glob.glob(str( self.root / table_name / self.block_name / "*.csv"))], ignore_index = True)
+        df = pd.concat([pd.read_csv(f, error_bad_lines=False, escapechar="\\") for f in glob.glob(str( self.root / table_name / self.block_name / "*.csv"))], ignore_index = True)
         return df
 
     def impute_nan_to_sql_table(func):
@@ -521,7 +525,7 @@ class ScoringRuleCSV(ScoringRule):
 
     @impute_nan_to_sql_table
     def get_citations(self, paper_ids):
-        citations = self.read_table("citation_table")
+        citations = self.read_table("citing_table")
         citations = citations[citations["source"].isin(paper_ids) | citations["target"].isin(paper_ids)]
         return citations.dropna()
 
