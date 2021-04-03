@@ -39,7 +39,7 @@ if __name__ == "__main__":
             pd.read_csv(f, escapechar="\\")
             for f in glob.glob(str(root / table_name / block_name / "*"))
         ]
-        if len(dflist) == 0:
+        if len(dflist) != 0:
             tables[table_name_extended] = pd.concat(dflist)
 
     #
@@ -55,7 +55,12 @@ if __name__ == "__main__":
         scoring_func = ScoringRule(general_name_list, **block_tables)
         W, author_paper_table = scoring_func.eval()
 
-        W[W < threshold] = 0
+        if isinstance(W, sparse.csr_matrix):
+            W.data[W.data < threshold] = 0
+            W.eliminate_zeros()
+        else:
+            W[W < threshold] = 0
+
         cids = utils.get_connected_component(W)
         author_paper_table = author_paper_table.copy()
         author_paper_table["cluster_id"] = [

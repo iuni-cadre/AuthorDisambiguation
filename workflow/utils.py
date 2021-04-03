@@ -1,9 +1,11 @@
-from scipy import sparse
+import json
+
 import networkx as nx
 import numpy as np
 import pandas as pd
 import requests
-import json
+from scipy import sparse
+
 
 #
 # Helper functions
@@ -58,9 +60,9 @@ def to_cooccurrence_matrix(
     data_frame, source, target, num_rows=None, num_cols=None, binarize=True
 ):
     df = data_frame[[source, target]].dropna()
-    
-    vals, freq = np.unique(df[target].values, return_counts = 1)
-    effective_set = vals[freq>1]
+
+    vals, freq = np.unique(df[target].values, return_counts=1)
+    effective_set = vals[freq > 1]
     df = df[df[target].isin(effective_set)]
 
     B, _, _ = to_binary_matrix(
@@ -73,11 +75,10 @@ def to_cooccurrence_matrix(
 
 
 def to_weighted_cooccurrence_matrix(
-    df, id_col, columns, weights, num_rows=None, return_mat="dense"
+    df, id_col, columns, weights, num_rows=None, return_mat="sparse"
 ):
-    """
-    Calculate the co-occurence of items 
-    
+    """Calculate the co-occurence of items.
+
     Params
     ------
     df: pandas.DataFrame
@@ -85,13 +86,13 @@ def to_weighted_cooccurrence_matrix(
         Column for the index of the co-occurrence matrix
     columns: list of str
         Name of columns used for computing the matching score
-    weights: list of float 
-        The matching score is given by 
+    weights: list of float
+        The matching score is given by
             sum_{c in columns} w[c] * delta(df.loc[i, c], df.loc[j, c])
         where delta is the Kronecker delta
     num_cols: number of columns
     num_rows: number of rows
-        
+
     Return
     ------
     W : numpy.array or scipy.sparse.csr_matrix
@@ -111,10 +112,12 @@ def to_weighted_cooccurrence_matrix(
 
 
 def to_nested_weighted_cooccurrence_matrix(df, id_col, columns, weights, num_rows=None):
-    """
-    Calculate the co-occurence of items. 
-    The weights for matching rules have a hierarchy, where columns[i+1] is the upper group of columns[i].
-    When a pair satisfies more than two rules simultaneously, the weight of the upper most rules will be used.
+    """Calculate the co-occurence of items.
+
+    The weights for matching rules have a hierarchy, where columns[i+1]
+    is the upper group of columns[i]. When a pair satisfies more than
+    two rules simultaneously, the weight of the upper most rules will be
+    used.
     """
     if isinstance(weights, list):
         weights = np.array(weights)
@@ -137,7 +140,7 @@ def to_nested_weighted_cooccurrence_matrix(df, id_col, columns, weights, num_row
 
 
 def to_string_array(a):
-    """from numpy array to string compatible with sql in c"""
+    """from numpy array to string compatible with sql in c."""
     return ",".join(['"%s"' % b for b in a])
 
 
@@ -164,12 +167,13 @@ def slice_columns(tb, cols):
 
     return tb[cols]
 
+
 #
 # Retrieve the bibliographics from the Elastic Search
 #
 def find_papers_by_UID(uri, uids, max_request_records=1000):
     def find_papers_by_UID(uri, uids):
-        """Simple Elasticsearch Query"""
+        """Simple Elasticsearch Query."""
         query = json.dumps({"query": {"ids": {"values": uids}}, "size": len(uids),})
         headers = {"Content-Type": "application/json"}
         response = requests.get(uri, headers=headers, data=query)

@@ -60,8 +60,8 @@ VALIDATION_RESULT = "data/result/validation-scores.txt"
 # Parameters
 #
 THRESHOLD = 10
-BLOCK_NAME_LIST = ["initials2=a.a"]
-#BLOCK_NAME_LIST = ["initials2=ada", "initials2=a.a"]
+#BLOCK_NAME_LIST = ["initials2=a.a"]
+BLOCK_NAME_LIST = ["initials2=ada", "initials2=a.a"]
 CLUSTER_FILE= j(CLUSTER_DIR, "clusters_block={block_name}.csv")
 CLUSTER_FILE_ALL= expand(CLUSTER_FILE, block_name = BLOCK_NAME_LIST)
 
